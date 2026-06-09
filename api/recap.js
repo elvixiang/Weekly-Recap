@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ ok: false, error: "POST only" });
 
   // ⬇️ Ganti dengan URL Web App /exec kamu
-  const APPS_SCRIPT_URL = "PASTE_URL_WEB_APP_DISINI";
+  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyOYUQGZ2_Z9Tdx3ZAYd60YXmLzkg-zaxgZzLW-UJHs8sVA1seDnhY-VFuclxboA0AHYw/exec";
 
   try {
     const payload = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
