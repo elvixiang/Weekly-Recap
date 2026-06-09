@@ -183,20 +183,24 @@
     <div class="card pad" style="margin-bottom:22px">
       <span class="week-tag">🗓️ <span id="weekLabel"></span></span>
       <h2 style="font-size:20px;margin-bottom:4px">Recap minggu ini</h2>
-      <p class="muted" style="font-size:13.5px;margin-bottom:18px">Deadline tiap <b>Jumat jam 17:00</b>. Lewat dari itu otomatis tercatat <i>Telat</i>.</p>
+      <p class="muted" style="font-size:13.5px;margin-bottom:18px">Deadline tiap <b>Jumat jam 19:00</b>. Lewat dari itu otomatis tercatat <i>Telat</i>.</p>
       <div id="staff-alert"></div>
+      <div class="field" style="max-width:260px">
+        <label for="dateInput">Recap untuk tanggal <span style="color:var(--rose)">*</span></label>
+        <input id="dateInput" type="date" />
+      </div>
       <div class="field">
         <label for="recapInput">Apa yang kamu kerjakan minggu ini? <span style="color:var(--rose)">*</span></label>
         <textarea id="recapInput" placeholder="Tulis poin-poin pekerjaan kamu…"></textarea>
       </div>
       <div class="grid-2">
         <div class="field">
-          <label for="blockInput">Kendala / blocker</label>
-          <textarea id="blockInput" placeholder="Opsional"></textarea>
+          <label for="blockInput">Kendala / blocker <span style="color:var(--rose)">*</span></label>
+          <textarea id="blockInput" placeholder="Wajib diisi — tulis kendalanya, atau 'tidak ada'"></textarea>
         </div>
         <div class="field">
-          <label for="planInput">Rencana minggu depan</label>
-          <textarea id="planInput" placeholder="Opsional"></textarea>
+          <label for="planInput">Rencana minggu depan <span style="color:var(--rose)">*</span></label>
+          <textarea id="planInput" placeholder="Wajib diisi"></textarea>
         </div>
       </div>
       <button class="btn" id="submitBtn">Kirim Recap</button>
@@ -204,7 +208,7 @@
 
     <div class="card pad">
       <h2 style="font-size:19px;margin-bottom:4px">Riwayat &amp; feedback kamu</h2>
-      <p class="muted" style="font-size:13px;margin-bottom:8px">Penilaian dari owner muncul di sini.</p>
+      <p class="muted" style="font-size:13px;margin-bottom:8px">Penilaian dari Ibu Negara muncul di sini.</p>
       <div id="staff-history"></div>
     </div>
   </section>
@@ -214,7 +218,7 @@
     <div class="toolbar">
       <h2>Dashboard Recap Tim</h2>
       <div class="week-sel">
-        <span class="muted" style="font-size:13px;font-weight:600">Minggu:</span>
+        <span class="muted" style="font-size:13px;font-weight:600">Periode:</span>
         <select id="weekFilter"></select>
       </div>
     </div>
@@ -257,7 +261,7 @@ async function init(){
     const sel = $("#nameSel");
     if(r.ok && r.team.length){
       sel.innerHTML = '<option value="">— pilih nama —</option>' +
-        r.team.map(m=>`<option value="${esc(m.name)}">${esc(m.name)}${m.role==='owner'?' (owner)':''}</option>`).join("");
+        r.team.map(m=>`<option value="${esc(m.name)}">${esc(m.name)}${m.role==='owner'?' (Ibu Negara)':''}</option>`).join("");
     }else{
       sel.innerHTML = '<option value="">(daftar tim kosong)</option>';
     }
@@ -289,7 +293,7 @@ function showApp(){
   $("#topbar").classList.remove("hidden");
   $("#whoPill").textContent = session.name;
   if(session.role==="owner"){
-    $("#role-label").textContent = "Mode Owner — penilaian & feedback";
+    $("#role-label").textContent = "Mode Ibu Negara — penilaian & feedback";
     $("#view-owner").classList.remove("hidden");
     loadOwner();
   }else{
@@ -308,12 +312,19 @@ $("#logoutBtn").addEventListener("click", ()=>{
 
 /* ---------- staff ---------- */
 async function loadStaff(){
-  $("#weekLabel").textContent = currentWeekLabel();
+  const di = $("#dateInput");
+  if(!di.value) di.value = isoToday();
+  di.onchange = updateStaffWeekLabel;
+  updateStaffWeekLabel();
   renderHistory([]);
   try{
     const r = await api({action:"myHistory", name:session.name, pin:session.pin});
     if(r.ok) renderHistory(r.history);
   }catch(e){}
+}
+function updateStaffWeekLabel(){
+  const v = $("#dateInput").value;
+  $("#weekLabel").textContent = v ? ("Minggu "+weekLabelFromISO(mondayISO(parseLocal(v)))) : currentWeekLabel();
 }
 function renderHistory(items){
   const box = $("#staff-history");
@@ -327,22 +338,27 @@ function renderHistory(items){
       <p>${esc(it.recap)}</p>
       ${it.feedback || it.score ? `<div class="fb">
           ${it.score?`<div class="stars">${stars(it.score)}</div>`:""}
-          ${it.feedback?`<div style="margin-top:4px"><b>Feedback owner:</b> ${esc(it.feedback)}</div>`:""}
-        </div>`:'<p class="muted" style="font-size:12.5px;margin-top:8px">Belum dinilai owner.</p>'}
+          ${it.feedback?`<div style="margin-top:4px"><b>Feedback Ibu Negara:</b> ${esc(it.feedback)}</div>`:""}
+        </div>`:'<p class="muted" style="font-size:12.5px;margin-top:8px">Belum dinilai Ibu Negara.</p>'}
     </div>`).join("");
 }
 $("#submitBtn").addEventListener("click", submitRecap);
 async function submitRecap(){
+  const forDate = $("#dateInput").value;
   const recap = $("#recapInput").value.trim();
+  const blockers = $("#blockInput").value.trim();
+  const nextPlan = $("#planInput").value.trim();
+  if(!forDate){ return alertBox("#staff-alert","Pilih tanggal recap dulu.","err"); }
   if(!recap){ return alertBox("#staff-alert","Bagian pekerjaan minggu ini wajib diisi.","err"); }
+  if(!blockers){ return alertBox("#staff-alert","Bagian kendala/blocker wajib diisi (tulis 'tidak ada' kalau nggak ada).","err"); }
+  if(!nextPlan){ return alertBox("#staff-alert","Bagian rencana minggu depan wajib diisi.","err"); }
   const btn=$("#submitBtn"); btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Mengirim…';
   try{
-    const r = await api({action:"submit", name:session.name, pin:session.pin,
-      recap, blockers:$("#blockInput").value.trim(), nextPlan:$("#planInput").value.trim()});
+    const r = await api({action:"submit", name:session.name, pin:session.pin, forDate, recap, blockers, nextPlan});
     if(!r.ok){ alertBox("#staff-alert", r.error||"Gagal mengirim.","err"); return; }
     const late = r.status!=="Tepat Waktu";
     alertBox("#staff-alert",
-      `✅ Recap terkirim — status: <b>${esc(r.status)}</b>.${late?" (lewat deadline Jumat 17:00)":""} Owner sudah dapat notifikasi email.`,
+      `✅ Recap terkirim — status: <b>${esc(r.status)}</b>.${late?" (lewat deadline Jumat 19:00)":""} Ibu Negara sudah dapat notifikasi email.`,
       late?"warn":"ok");
     $("#recapInput").value=$("#blockInput").value=$("#planInput").value="";
     loadStaff();
@@ -366,12 +382,15 @@ function buildWeekFilter(){
   const cur = mondayISO(new Date());
   if(!weeks.includes(cur)) weeks.unshift(cur);
   const sel=$("#weekFilter");
-  sel.innerHTML = weeks.map(w=>`<option value="${w}">${weekLabelFromISO(w)}</option>`).join("");
+  sel.innerHTML = '<option value="__ALL__">📊 Semua waktu (rekap)</option>' +
+    weeks.map(w=>`<option value="${w}">${weekLabelFromISO(w)}</option>`).join("");
+  sel.value = cur;            // default ke minggu ini
   sel.onchange = renderOwner;
 }
 function renderOwner(){
   const week = $("#weekFilter").value;
   const staff = ownerData.team.filter(m=>m.role!=="owner");
+  if(week==="__ALL__"){ renderAllTime(staff); return; }
   const subs = ownerData.submissions.filter(s=>s.weekOf===week);
   const byName = {}; subs.forEach(s=>byName[s.name]=s);
 
@@ -432,6 +451,42 @@ function renderOwner(){
     </div>`;
   }).join("");
 }
+function renderAllTime(staff){
+  const subs = ownerData.submissions;
+  const scoredAll = subs.filter(s=>Number(s.score)>0);
+  const avgAll = scoredAll.length ? scoredAll.reduce((a,s)=>a+Number(s.score),0)/scoredAll.length : 0;
+  const tepat = subs.filter(s=>s.status==="Tepat Waktu").length;
+  const telat = subs.filter(s=>s.status==="Telat").length;
+
+  $("#statsRow").innerHTML = `
+    <div class="stat"><div class="n">${subs.length}</div><div class="l">Total recap</div></div>
+    <div class="stat"><div class="n">${avgAll?avgAll.toFixed(1):"–"}</div><div class="l">Rata-rata skor</div></div>
+    <div class="stat t"><div class="n">${tepat}</div><div class="l">Tepat waktu</div></div>
+    <div class="stat l8"><div class="n">${telat}</div><div class="l">Telat</div></div>`;
+
+  const rows = staff.map(m=>{
+    const mine = subs.filter(s=>s.name===m.name);
+    const sc = mine.filter(s=>Number(s.score)>0);
+    const avg = sc.length ? sc.reduce((a,s)=>a+Number(s.score),0)/sc.length : 0;
+    return { m, count:mine.length, avg, scored:sc.length,
+      tepat: mine.filter(s=>s.status==="Tepat Waktu").length,
+      telat: mine.filter(s=>s.status==="Telat").length };
+  }).sort((a,b)=> b.count-a.count || b.avg-a.avg);
+
+  $("#owner-list").innerHTML = rows.map(r=>{
+    const meta = r.count
+      ? `${r.count}× kumpul${r.scored?` · rata-rata ${r.avg.toFixed(1)}`:" · belum dinilai"}`
+      : "Belum pernah kumpul";
+    return `<div class="card sub-card"><div class="sub-head" style="cursor:default">
+      <div class="sub-who"><div class="avatar">${esc(initials(r.m.name))}</div>
+        <div><div class="nm">${esc(r.m.name)}</div><div class="em">${meta}</div></div></div>
+      <div class="sub-meta">
+        ${r.scored?`<span class="stars" title="rata-rata skor">${stars(Math.round(r.avg))}</span>`:""}
+        <span class="badge b-tepat">${r.tepat} tepat</span>
+        <span class="badge b-telat">${r.telat} telat</span>
+      </div></div></div>`;
+  }).join("");
+}
 function toggleBody(head){
   const body = head.parentElement.querySelector(".sub-body");
   body.classList.toggle("open");
@@ -465,9 +520,11 @@ async function remind(name, btn){
 }
 
 /* ---------- week helpers (sinkron dgn backend, Senin–Minggu) ---------- */
+function isoToday(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function parseLocal(s){ const p=String(s).split("T")[0].split("-").map(Number); return new Date(p[0], p[1]-1, p[2]); }
 function mondayISO(d){ const x=new Date(d); const day=x.getDay(); const diff=(day===0?-6:1-day);
   x.setDate(x.getDate()+diff); return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0"); }
-function weekLabelFromISO(iso){ const [y,m,d]=iso.split("-").map(Number); const mon=new Date(y,m-1,d);
+function weekLabelFromISO(iso){ const [y,m,d]=String(iso).split("T")[0].split("-").map(Number); const mon=new Date(y,m-1,d);
   const sun=new Date(mon); sun.setDate(mon.getDate()+6);
   const f={day:"numeric",month:"short"};
   return mon.toLocaleDateString("id-ID",f)+" – "+sun.toLocaleDateString("id-ID",{...f,year:"numeric"}); }
