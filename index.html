@@ -138,6 +138,31 @@
   @keyframes spin{to{transform:rotate(360deg)}}
   .config-warn{background:var(--amber-bg);color:var(--amber);border-radius:12px;padding:14px 16px;font-size:13.5px;margin-bottom:18px}
   code{background:var(--paper2);padding:1px 6px;border-radius:5px;font-size:12.5px}
+
+  /* ---- nama bisa diklik utk profil ---- */
+  .nm-link{cursor:pointer;text-decoration:underline;text-decoration-color:transparent;transition:.15s}
+  .nm-link:hover{text-decoration-color:var(--teal)}
+
+  /* ---- profile modal ---- */
+  .modal-overlay{position:fixed;inset:0;background:rgba(34,37,31,.45);display:flex;align-items:center;justify-content:center;padding:18px;z-index:50}
+  .modal-card{background:var(--surface);border-radius:18px;max-width:480px;width:100%;max-height:88vh;overflow:auto;box-shadow:0 20px 60px -20px rgba(0,0,0,.35)}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:18px 18px 14px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--surface)}
+  .modal-body{padding:6px 20px 22px}
+  .pf-row{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+  .pf-row:last-child{border-bottom:none}
+  .pf-row .lab{color:var(--ink-soft);font-weight:600;flex-shrink:0}
+  .pf-row .val{text-align:right;max-width:62%;white-space:pre-wrap}
+  .pf-num{font-family:'Fraunces';font-size:22px;font-weight:600}
+  .pf-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:4px 0 10px}
+  .pf-box{background:var(--paper);border-radius:12px;padding:12px;text-align:center}
+  .pf-box .l{font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;margin-top:3px}
+
+  /* ---- AI feedback checker ---- */
+  .ai-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:8px 0 4px}
+  .ai-badge{font-size:12.5px;font-weight:700;padding:5px 11px;border-radius:999px;display:inline-flex;align-items:center;gap:6px}
+  .ai-ok{background:var(--green-bg);color:var(--green)}
+  .ai-warn{background:var(--amber-bg);color:var(--amber)}
+  .ai-note{font-size:12.5px;color:var(--ink-soft);flex-basis:100%}
 </style>
 </head>
 <body>
@@ -227,6 +252,36 @@
     <div id="owner-list"></div>
   </section>
 
+  <!-- ================= ALL STATS (Ibu Penasihat) ================= -->
+  <section id="view-allstats" class="hidden" style="margin-top:30px">
+    <div class="toolbar">
+      <h2>Rekap Semua Staff (All-Time)</h2>
+    </div>
+    <p class="muted" style="font-size:13px;margin:-6px 0 4px">
+      Read-only — klik nama untuk lihat profil lengkap. Penilaian &amp; feedback tetap dilakukan oleh Ibu Negara / Bapak Menteri.
+    </p>
+    <div id="allstats-list"></div>
+  </section>
+
+</div>
+
+<!-- ================= PROFILE MODAL ================= -->
+<div id="profileOverlay" class="modal-overlay hidden" onclick="if(event.target===this) closeProfile()">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div style="display:flex;align-items:center;gap:12px;min-width:0">
+        <div class="avatar" id="pf-avatar" style="width:46px;height:46px;font-size:16px"></div>
+        <div style="min-width:0">
+          <div id="pf-name" style="font-family:'Fraunces';font-weight:600;font-size:18px"></div>
+          <div id="pf-position" class="muted" style="font-size:12.5px"></div>
+        </div>
+      </div>
+      <button class="btn-ghost" onclick="closeProfile()" aria-label="Tutup">✕</button>
+    </div>
+    <div class="modal-body" id="pf-body">
+      <div class="empty">Memuat profil…</div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -253,7 +308,7 @@ async function api(payload){
 function alertBox(sel,msg,type){ $(sel).innerHTML = msg ? `<div class="alert ${type}">${msg}</div>` : ""; }
 function initials(n){ return n.trim().split(/\s+/).slice(0,2).map(w=>w[0]).join("").toUpperCase(); }
 function stars(n){ n=Number(n)||0; return "★".repeat(n)+"☆".repeat(5-n); }
-function roleLabel(role){ return ({owner:"Ibu Negara", menteri:"Bapak Menteri", pejabat:"Pejabat", staff:"Staff"})[role] || ""; }
+function roleLabel(role){ return ({owner:"Ibu Negara", menteri:"Bapak Menteri", pejabat:"Pejabat", penasihat:"Ibu Penasihat", staff:"Staff"})[role] || ""; }
 function feedbackGiver(role){ return role==="pejabat" ? "Bapak Menteri" : "Ibu Negara"; }
 
 /* ---------- bootstrap ---------- */
@@ -310,6 +365,12 @@ function showApp(){
     $("#role-label").textContent = "Mode Pejabat — lapor mingguan ke Bapak Menteri";
     $("#view-staff").classList.remove("hidden");
     loadStaff();
+  }else if(role==="penasihat"){
+    $("#role-label").textContent = "Mode Ibu Penasihat — lapor ke Ibu Negara & pantau semua staff";
+    $("#view-staff").classList.remove("hidden");      // form lapor dia sendiri
+    $("#view-allstats").classList.remove("hidden");   // rekap all-time semua orang
+    loadStaff();
+    loadAllStats();
   }else{
     $("#role-label").textContent = "Mode Staff — lapor mingguan ke Ibu Negara";
     $("#view-staff").classList.remove("hidden");
@@ -319,7 +380,7 @@ function showApp(){
 
 $("#logoutBtn").addEventListener("click", ()=>{
   session=null; ownerData=null;
-  ["#view-staff","#view-owner","#topbar"].forEach(s=>$(s).classList.add("hidden"));
+  ["#view-staff","#view-owner","#view-allstats","#topbar"].forEach(s=>$(s).classList.add("hidden"));
   $("#view-login").classList.remove("hidden");
   $("#pinInput").value=""; alertBox("#login-alert","");
 });
@@ -438,7 +499,7 @@ function renderOwner(){
       return `<div class="card sub-card">
         <div class="sub-head" style="cursor:default">
           <div class="sub-who"><div class="avatar">${esc(initials(m.name))}</div>
-            <div><div class="nm">${esc(m.name)} ${roleChip}</div><div class="em">${esc(m.email||"")}</div></div></div>
+            <div><div class="nm"><span class="nm-link" onclick="event.stopPropagation();openProfile('${esc(m.name)}')">${esc(m.name)}</span> ${roleChip}</div><div class="em">${esc(m.email||"")}</div></div></div>
           <div class="sub-meta">
             <span class="badge b-absen">Absen</span>
             ${canScore?`<button class="btn-ghost" onclick="remind('${esc(m.name)}',this)">Ingatkan</button>`:""}
@@ -453,7 +514,12 @@ function renderOwner(){
           </div>
         </div>
         <div class="blk"><h4>Feedback ke ${esc(m.name)}</h4>
-          <textarea id="fb-${esc(s.id)}" placeholder="Tulis feedback…">${esc(s.feedback||"")}</textarea>
+          <textarea id="fb-${esc(s.id)}" placeholder="Tulis feedback…"
+            data-recap="${esc(s.recap)}" data-blockers="${esc(s.blockers||"")}" data-nextplan="${esc(s.nextPlan||"")}"
+            >${esc(s.feedback||"")}</textarea>
+        </div>
+        <div class="ai-row" id="ai-${esc(s.id)}">
+          <button class="btn-ghost" onclick="checkFeedbackAI('${esc(s.id)}',this)">✨ Cek dengan AI</button>
         </div>
         <div class="row-actions">
           <button class="btn sm" onclick="sendFeedback('${esc(s.id)}','${esc(m.name)}',this)">Kirim Feedback (email)</button>
@@ -466,7 +532,7 @@ function renderOwner(){
     return `<div class="card sub-card">
       <div class="sub-head" onclick="toggleBody(this)">
         <div class="sub-who"><div class="avatar">${esc(initials(m.name))}</div>
-          <div><div class="nm">${esc(m.name)} ${roleChip}</div><div class="em">Dikirim ${esc(s.submittedLabel)}</div></div></div>
+          <div><div class="nm"><span class="nm-link" onclick="event.stopPropagation();openProfile('${esc(m.name)}')">${esc(m.name)}</span> ${roleChip}</div><div class="em">Dikirim ${esc(s.submittedLabel)}</div></div></div>
         <div class="sub-meta">
           ${s.score?`<span class="stars" title="penilaian">${stars(s.score)}</span>`:""}
           <span class="badge ${badge}">${esc(s.status)}</span>
@@ -512,7 +578,7 @@ function renderAllTime(members){
       : "Belum pernah kumpul";
     return `<div class="card sub-card"><div class="sub-head" style="cursor:default">
       <div class="sub-who"><div class="avatar">${esc(initials(r.m.name))}</div>
-        <div><div class="nm">${esc(r.m.name)} ${roleChip}</div><div class="em">${meta}</div></div></div>
+        <div><div class="nm"><span class="nm-link" onclick="openProfile('${esc(r.m.name)}')">${esc(r.m.name)}</span> ${roleChip}</div><div class="em">${meta}</div></div></div>
       <div class="sub-meta">
         ${r.scored?`<span class="stars" title="rata-rata skor">${stars(Math.round(r.avg))}</span>`:""}
         <span class="badge b-tepat">${r.tepat} tepat</span>
@@ -524,6 +590,32 @@ function toggleBody(head){
   const body = head.parentElement.querySelector(".sub-body");
   body.classList.toggle("open");
   const chev = head.querySelector(".chev"); if(chev) chev.style.transform = body.classList.contains("open")?"rotate(180deg)":"";
+}
+
+/* ---------- all-stats (Ibu Penasihat) ---------- */
+async function loadAllStats(){
+  $("#allstats-list").innerHTML = '<div class="empty">Memuat data…</div>';
+  try{
+    const r = await api({action:"getAllStats", name:session.name, pin:session.pin});
+    if(!r.ok){ $("#allstats-list").innerHTML = `<div class="empty">${esc(r.error||"Gagal memuat.")}</div>`; return; }
+    renderAllStats(r.stats);
+  }catch(e){ $("#allstats-list").innerHTML = '<div class="empty">Error koneksi.</div>'; }
+}
+function renderAllStats(stats){
+  if(!stats.length){ $("#allstats-list").innerHTML = '<div class="empty">Belum ada data.</div>'; return; }
+  const rows = [...stats].sort((a,b)=> b.count-a.count || b.avgScore-a.avgScore);
+  $("#allstats-list").innerHTML = rows.map(r=>{
+    const youChip = (r.name===session.name) ? '<span class="rolechip">Kamu</span>' : "";
+    return `<div class="card sub-card"><div class="sub-head" style="cursor:default">
+      <div class="sub-who"><div class="avatar">${esc(initials(r.name))}</div>
+        <div><div class="nm"><span class="nm-link" onclick="openProfile('${esc(r.name)}')">${esc(r.name)}</span> <span class="rolechip">${esc(roleLabel(r.role))}</span> ${youChip}</div>
+          <div class="em">${r.count} kali kumpul${r.scoredCount?` · rata-rata ${r.avgScore.toFixed(1)} ★`:" · belum dinilai"}</div></div></div>
+      <div class="sub-meta">
+        <span class="badge b-tepat">${r.tepat} tepat</span>
+        <span class="badge b-telat">${r.telat} telat</span>
+        <span class="badge b-absen">${r.absen} absen</span>
+      </div></div></div>`;
+  }).join("");
 }
 function setStar(btn){
   const row = btn.parentElement; const v = +btn.dataset.v;
@@ -550,6 +642,79 @@ async function remind(name, btn){
     const r = await api({action:"remind", name:session.name, pin:session.pin, target:name});
     btn.textContent = r.ok ? "✓ Diingatkan" : "✗ gagal";
   }catch(e){ btn.textContent="✗ error"; }
+}
+
+/* ---------- profile modal ---------- */
+async function openProfile(name){
+  $("#profileOverlay").classList.remove("hidden");
+  $("#pf-avatar").textContent = initials(name);
+  $("#pf-name").textContent = name;
+  $("#pf-position").textContent = "";
+  $("#pf-body").innerHTML = '<div class="empty">Memuat profil…</div>';
+  try{
+    const r = await api({action:"getProfile", name:session.name, pin:session.pin, target:name});
+    if(!r.ok){ $("#pf-body").innerHTML = `<div class="empty">${esc(r.error||"Gagal memuat profil.")}</div>`; return; }
+    renderProfile(r.profile);
+  }catch(e){ $("#pf-body").innerHTML = '<div class="empty">Error koneksi.</div>'; }
+}
+function closeProfile(){ $("#profileOverlay").classList.add("hidden"); }
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeProfile(); });
+
+function renderProfile(p){
+  $("#pf-name").textContent = p.namaLengkap || p.name;
+  $("#pf-position").textContent = p.position || roleLabel(p.role);
+  const row=(lab,val)=> val ? `<div class="pf-row"><span class="lab">${esc(lab)}</span><span class="val">${esc(val)}</span></div>` : "";
+  $("#pf-body").innerHTML = `
+    <div class="pf-pair">
+      <div class="pf-box"><div class="pf-num">${p.submittedCount}</div><div class="l">Submitted Report</div></div>
+      <div class="pf-box"><div class="pf-num">${p.avgScore?p.avgScore.toFixed(1)+" ★":"–"}</div><div class="l">Average Score</div></div>
+    </div>
+    ${row("Nama Lengkap", p.namaLengkap)}
+    ${row("Tempat, Tanggal Lahir", p.ttl)}
+    ${row("Join Date", p.joinDate)}
+    ${row("Position", p.position)}
+    ${row("Status", p.employeeStatus)}
+    ${row("Note from HR", p.note)}
+    ${(!p.ttl && !p.joinDate && !p.employeeStatus && !p.note) ? '<p class="muted" style="font-size:13px;margin-top:6px">Data HR belum diisi di sheet <b>Profiles</b>.</p>' : ""}
+  `;
+}
+
+/* ---------- AI feedback checker ---------- */
+async function checkFeedbackAI(id, btn){
+  const ta = $(`#fb-${id}`);
+  const feedback = ta.value.trim();
+  const box = $(`#ai-${id}`);
+  if(!feedback){ box.innerHTML = `<span class="ai-note">Tulis feedback dulu, baru bisa dicek AI.</span>`; return; }
+  btn.disabled=true; const orig=btn.innerHTML; btn.innerHTML='<span class="spinner"></span>Mengecek…';
+  const recap = ta.dataset.recap||"", blockers=ta.dataset.blockers||"", nextplan=ta.dataset.nextplan||"";
+  const prompt = `Kamu adalah asisten HR yang menilai apakah FEEDBACK dari atasan sudah cukup lengkap & relevan menanggapi REPORT mingguan staff.
+
+REPORT STAFF:
+- Pekerjaan: ${recap}
+- Kendala: ${blockers}
+- Rencana minggu depan: ${nextplan}
+
+FEEDBACK ATASAN:
+${feedback}
+
+Nilai apakah feedback ini sudah relevan & cukup lengkap (idealnya menanggapi pekerjaan, kendala, dan/atau rencana di atas; tidak harus ketiganya, tapi minimal menyentuh salah satu poin penting secara spesifik, bukan komentar generik seperti "bagus, lanjutkan").
+
+Balas HANYA dengan JSON murni (tanpa markdown/backtick), format persis:
+{"ok": true/false, "note": "satu kalimat singkat dlm Bahasa Indonesia, max 20 kata"}`;
+  try{
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:200, messages:[{role:"user", content:prompt}] })
+    });
+    const data = await res.json();
+    const text = (data.content||[]).map(c=>c.text||"").join("").replace(/```json|```/g,"").trim();
+    const parsed = JSON.parse(text);
+    box.innerHTML = parsed.ok
+      ? `<span class="ai-badge ai-ok">✅ Cukup lengkap</span><span class="ai-note">${esc(parsed.note||"")}</span>`
+      : `<span class="ai-badge ai-warn">⚠️ Kurang spesifik</span><span class="ai-note">${esc(parsed.note||"")}</span>`;
+  }catch(e){
+    box.innerHTML = `<span class="ai-note">Gagal cek AI, coba lagi.</span>`;
+  }finally{ btn.disabled=false; btn.innerHTML=orig; }
 }
 
 /* ---------- week helpers (sinkron dgn backend, Senin–Minggu) ---------- */
