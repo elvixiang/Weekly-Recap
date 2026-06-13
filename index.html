@@ -163,6 +163,838 @@
   .ai-ok{background:var(--green-bg);color:var(--green)}
   .ai-warn{background:var(--amber-bg);color:var(--amber)}
   .ai-note{font-size:12.5px;color:var(--ink-soft);flex-basis:100%}
+
+  /* ---- tab nav (Bapak Menteri / Ibu Penasihat: multi-section) ---- */
+  .tabbar{display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid var(--line);overflow-x:auto}
+  .tab-btn{font:inherit;font-size:14px;font-weight:600;color:var(--ink-soft);background:none;border:none;
+    padding:10px 4px;margin-right:18px;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:.15s}
+  .tab-btn:hover{color:var(--ink)}
+  .tab-btn.active{color:var(--teal-d);border-bottom-color:var(--teal)}
+  .tab-pane{display:none}
+  .tab-pane.active{display:block}
+
+  /* ---- avatar foto profil ---- */
+  .avatar{overflow:hidden}
+  .avatar img{width:100%;height:100%;object-fit:cover;display:block}
+  .avatar-content{display:flex;width:100%;height:100%;align-items:center;justify-content:center}
+  .pf-avatar-wrap{position:relative;width:64px;height:64px;flex-shrink:0}
+  .pf-avatar-wrap .avatar{width:64px;height:64px;font-size:22px;border-radius:14px}
+  .pf-photo-btn{position:absolute;inset:0;border-radius:14px;background:rgba(17,94,89,.55);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;text-align:center;
+    opacity:0;cursor:pointer;transition:.15s;border:none;font-family:inherit;line-height:1.2;padding:4px}
+  .pf-avatar-wrap:hover .pf-photo-btn, .pf-avatar-wrap:focus-within .pf-photo-btn{opacity:1}
+  .pf-photo-input{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ================= LOGIN ================= -->
+  <section id="view-login">
+    <div class="login-shell">
+      <div class="logo">R</div>
+      <h1>Weekly Recap</h1>
+      <p class="sub">Pilih nama kamu &amp; masukkan PIN buat masuk</p>
+      <div id="config-warn" class="config-warn hidden">
+        ⚠️ URL backend belum diisi. Buka file ini, cari <code>APPS_SCRIPT_URL</code> di bagian &lt;script&gt;, lalu paste URL Web App-mu.
+      </div>
+      <div id="login-alert"></div>
+      <div class="card pad">
+        <div class="field">
+          <label for="nameSel">Nama</label>
+          <select id="nameSel"><option value="">Memuat…</option></select>
+        </div>
+        <div class="field">
+          <label for="pinInput">PIN</label>
+          <input id="pinInput" type="password" inputmode="numeric" placeholder="••••" autocomplete="off" />
+        </div>
+        <button class="btn" id="loginBtn">Masuk</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TOPBAR (shared) ================= -->
+  <div id="topbar" class="topbar hidden">
+    <div class="brand">
+      <div class="logo">R</div>
+      <div><h1>Weekly Recap</h1><p id="role-label"></p></div>
+    </div>
+    <div class="whoami">
+      <label class="avatar" id="whoAvatar" style="width:32px;height:32px;font-size:12px;cursor:pointer" title="Ganti foto profil">
+        <span class="avatar-content"></span>
+        <input type="file" accept="image/png,image/jpeg,image/webp" class="pf-photo-input" onchange="handlePhotoChange(event,'#whoAvatar')">
+      </label>
+      <span class="pill" id="whoPill"></span>
+      <button class="btn-ghost" id="logoutBtn">Keluar</button>
+    </div>
+  </div>
+
+  <!-- ================= TAB BAR (multi-section roles) ================= -->
+  <div id="tabbar" class="tabbar hidden"></div>
+
+  <!-- ================= STAFF ================= -->
+  <section id="view-staff" class="hidden tab-pane">
+    <div class="card pad" style="margin-bottom:22px">
+      <span class="week-tag">🗓️ <span id="weekLabel"></span></span>
+      <h2 style="font-size:20px;margin-bottom:4px">Recap minggu ini</h2>
+      <p class="muted" style="font-size:13.5px;margin-bottom:18px">Deadline tiap <b>Jumat jam 19:00</b>. Lewat dari itu otomatis tercatat <i>Telat</i>.</p>
+      <div id="staff-alert"></div>
+      <div class="field" style="max-width:260px">
+        <label for="dateInput">Recap untuk tanggal <span style="color:var(--rose)">*</span></label>
+        <input id="dateInput" type="date" />
+      </div>
+      <div class="field">
+        <label for="recapInput">Apa yang kamu kerjakan minggu ini? <span style="color:var(--rose)">*</span></label>
+        <textarea id="recapInput" placeholder="Tulis poin-poin pekerjaan kamu…"></textarea>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="blockInput">Kendala / blocker <span style="color:var(--rose)">*</span></label>
+          <textarea id="blockInput" placeholder="Wajib diisi — tulis kendalanya, atau 'tidak ada'"></textarea>
+        </div>
+        <div class="field">
+          <label for="planInput">Rencana minggu depan <span style="color:var(--rose)">*</span></label>
+          <textarea id="planInput" placeholder="Wajib diisi"></textarea>
+        </div>
+      </div>
+      <button class="btn" id="submitBtn">Kirim Recap</button>
+    </div>
+
+    <div class="card pad">
+      <h2 style="font-size:19px;margin-bottom:4px">Riwayat &amp; feedback kamu</h2>
+      <p class="muted" style="font-size:13px;margin-bottom:8px">Penilaian dari Ibu Negara muncul di sini.</p>
+      <div id="staff-history"></div>
+    </div>
+  </section>
+
+  <!-- ================= OWNER ================= -->
+  <section id="view-owner" class="hidden tab-pane" style="margin-top:0">
+    <div class="toolbar">
+      <h2 id="ownerTitle">Dashboard Recap Tim</h2>
+      <div class="week-sel">
+        <span class="muted" style="font-size:13px;font-weight:600">Periode:</span>
+        <select id="weekFilter"></select>
+      </div>
+    </div>
+    <div class="stats" id="statsRow"></div>
+    <div id="owner-list"></div>
+  </section>
+
+  <!-- ================= ALL STATS (Ibu Penasihat) ================= -->
+  <section id="view-allstats" class="hidden tab-pane" style="margin-top:0">
+    <div class="toolbar">
+      <h2>Rekap Semua Staff (All-Time)</h2>
+    </div>
+    <p class="muted" style="font-size:13px;margin:-6px 0 4px">
+      Read-only — klik nama untuk lihat profil lengkap. Penilaian &amp; feedback tetap dilakukan oleh Ibu Negara / Bapak Menteri.
+    </p>
+    <div id="allstats-list"></div>
+  </section>
+
+</div>
+
+<!-- ================= PROFILE MODAL ================= -->
+<div id="profileOverlay" class="modal-overlay hidden" onclick="if(event.target===this) closeProfile()">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div style="display:flex;align-items:center;gap:12px;min-width:0">
+        <div class="pf-avatar-wrap">
+          <div class="avatar" id="pf-avatar" style="width:64px;height:64px;font-size:22px;border-radius:14px"></div>
+          <label class="pf-photo-btn hidden" id="pf-photo-btn">Ganti<br>Foto
+            <input type="file" accept="image/png,image/jpeg,image/webp" class="pf-photo-input" onchange="handlePhotoChange(event,'#pf-avatar')">
+          </label>
+        </div>
+        <div style="min-width:0">
+          <div id="pf-name" style="font-family:'Fraunces';font-weight:600;font-size:18px"></div>
+          <div id="pf-position" class="muted" style="font-size:12.5px"></div>
+        </div>
+      </div>
+      <button class="btn-ghost" onclick="closeProfile()" aria-label="Tutup">✕</button>
+    </div>
+    <div class="modal-body" id="pf-body">
+      <div class="empty">Memuat profil…</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   ⬇️ PASTE URL WEB APP APPS SCRIPT KAMU DI SINI ⬇️
+   ============================================================ */
+const APPS_SCRIPT_URL = "/api/recap";
+/* ============================================================ */
+
+const $ = s => document.querySelector(s);
+const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let session = null;        // {name, pin, role, email}
+let ownerData = null;      // {submissions, team}
+
+async function api(payload){
+  const res = await fetch(APPS_SCRIPT_URL, {
+    method:"POST",
+    headers:{"Content-Type":"text/plain;charset=utf-8"},
+    body:JSON.stringify(payload),
+    redirect:"follow"
+  });
+  return res.json();
+}
+function alertBox(sel,msg,type){ $(sel).innerHTML = msg ? `<div class="alert ${type}">${msg}</div>` : ""; }
+function initials(n){ return n.trim().split(/\s+/).slice(0,2).map(w=>w[0]).join("").toUpperCase(); }
+function stars(n){ n=Number(n)||0; return "★".repeat(n)+"☆".repeat(5-n); }
+function roleLabel(role){ return ({owner:"Ibu Negara", menteri:"Bapak Menteri", pejabat:"Pejabat", penasihat:"Ibu Penasihat", staff:"Staff"})[role] || ""; }
+function feedbackGiver(role){ return role==="pejabat" ? "Bapak Menteri" : "Ibu Negara"; }
+
+/* ---------- avatar foto profil ---------- */
+// String HTML utk dipakai di dalam innerHTML (dashboard list, dsb)
+function avatarHTML(name, photoUrl){
+  return photoUrl ? `<img src="${esc(photoUrl)}" alt="" loading="lazy">` : esc(initials(name||""));
+}
+// Set isi sebuah elemen .avatar yg sudah ada di DOM (topbar, modal profil).
+// Kalau elemen punya child .avatar-content (krn juga membungkus <input type=file>), target itu saja.
+function setAvatar(el, name, photoUrl){
+  if(!el) return;
+  const target = el.querySelector(".avatar-content") || el;
+  target.innerHTML = avatarHTML(name, photoUrl);
+}
+
+/* ---------- bootstrap ---------- */
+async function init(){
+  if(APPS_SCRIPT_URL.indexOf("PASTE_URL")===0){ $("#config-warn").classList.remove("hidden"); }
+  try{
+    const r = await api({action:"getTeam"});
+    const sel = $("#nameSel");
+    if(r.ok && r.team.length){
+      sel.innerHTML = '<option value="">— pilih nama —</option>' +
+        r.team.map(m=>`<option value="${esc(m.name)}">${esc(m.name)}${roleLabel(m.role)?' ('+roleLabel(m.role)+')':''}</option>`).join("");
+    }else{
+      sel.innerHTML = '<option value="">(daftar tim kosong)</option>';
+    }
+  }catch(e){
+    $("#nameSel").innerHTML = '<option value="">(gagal konek backend)</option>';
+    alertBox("#login-alert","Gagal konek ke backend. Cek URL & deployment Apps Script kamu.","err");
+  }
+}
+
+/* ---------- login ---------- */
+$("#loginBtn").addEventListener("click", login);
+$("#pinInput").addEventListener("keydown", e=>{ if(e.key==="Enter") login(); });
+async function login(){
+  const name = $("#nameSel").value, pin = $("#pinInput").value.trim();
+  if(!name){ return alertBox("#login-alert","Pilih nama dulu ya.","err"); }
+  if(!pin){ return alertBox("#login-alert","PIN belum diisi.","err"); }
+  const btn = $("#loginBtn"); btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Memeriksa…';
+  try{
+    const r = await api({action:"login", name, pin});
+    if(!r.ok){ alertBox("#login-alert", r.error||"Nama atau PIN salah.","err"); return; }
+    session = {name, pin, role:r.role, email:r.email, photoUrl:r.photoUrl||""};
+    showApp();
+  }catch(e){ alertBox("#login-alert","Error koneksi. Coba lagi.","err"); }
+  finally{ btn.disabled=false; btn.textContent="Masuk"; }
+}
+
+function showApp(){
+  $("#view-login").classList.add("hidden");
+  $("#topbar").classList.remove("hidden");
+  $("#whoPill").textContent = session.name;
+  setAvatar($("#whoAvatar"), session.name, session.photoUrl);
+  const role = session.role;
+  if(role==="owner"){
+    $("#role-label").textContent = "Mode Ibu Negara — pantau semua & nilai Bapak Menteri/Staff";
+    $("#view-owner").classList.remove("hidden");
+    loadOwner();
+    setupTabs([]); // single view, no tabs
+  }else if(role==="menteri"){
+    $("#role-label").textContent = "Mode Bapak Menteri — lapor ke Ibu Negara & nilai Pejabat";
+    $("#view-staff").classList.remove("hidden");   // form lapor dia sendiri
+    $("#view-owner").classList.remove("hidden");   // dashboard Pejabat
+    loadStaff();
+    loadOwner();
+    setupTabs([
+      {id:"view-staff", label:"Recap Saya"},
+      {id:"view-owner", label:"Dashboard Pejabat"}
+    ]);
+  }else if(role==="pejabat"){
+    $("#role-label").textContent = "Mode Pejabat — lapor mingguan ke Bapak Menteri";
+    $("#view-staff").classList.remove("hidden");
+    loadStaff();
+    setupTabs([]);
+  }else if(role==="penasihat"){
+    $("#role-label").textContent = "Mode Ibu Penasihat — lapor ke Ibu Negara & pantau semua staff";
+    $("#view-staff").classList.remove("hidden");      // form lapor dia sendiri
+    $("#view-allstats").classList.remove("hidden");   // rekap all-time semua orang
+    loadStaff();
+    loadAllStats();
+    setupTabs([
+      {id:"view-staff", label:"Recap Saya"},
+      {id:"view-allstats", label:"Rekap Semua Staff"}
+    ]);
+  }else{
+    $("#role-label").textContent = "Mode Staff — lapor mingguan ke Ibu Negara";
+    $("#view-staff").classList.remove("hidden");
+    loadStaff();
+    setupTabs([]);
+  }
+}
+
+// Tampilkan tabbar kalau ada >1 section; section pertama jadi default aktif.
+function setupTabs(tabs){
+  const bar = $("#tabbar");
+  if(tabs.length < 2){
+    bar.classList.add("hidden"); bar.innerHTML="";
+    // pastikan section yg sudah di-unhide tampil normal (tanpa sistem tab)
+    document.querySelectorAll(".tab-pane").forEach(p=>p.classList.add("active"));
+    return;
+  }
+  bar.classList.remove("hidden");
+  bar.innerHTML = tabs.map((t,i)=>
+    `<button class="tab-btn ${i===0?'active':''}" data-target="${t.id}" onclick="switchTab('${t.id}')">${esc(t.label)}</button>`
+  ).join("");
+  document.querySelectorAll(".tab-pane").forEach(p=>{
+    const isTab = tabs.some(t=>t.id===p.id);
+    p.classList.toggle("active", !isTab || p.id===tabs[0].id);
+  });
+}
+function switchTab(targetId){
+  document.querySelectorAll("#tabbar .tab-btn").forEach(b=> b.classList.toggle("active", b.dataset.target===targetId));
+  document.querySelectorAll(".tab-pane").forEach(p=>{
+    if(!p.classList.contains("hidden")) p.classList.toggle("active", p.id===targetId);
+  });
+}
+
+$("#logoutBtn").addEventListener("click", ()=>{
+  session=null; ownerData=null;
+  ["#view-staff","#view-owner","#view-allstats","#topbar"].forEach(s=>$(s).classList.add("hidden"));
+  $("#tabbar").classList.add("hidden"); $("#tabbar").innerHTML="";
+  document.querySelectorAll(".tab-pane").forEach(p=>p.classList.remove("active"));
+  $("#view-login").classList.remove("hidden");
+  $("#pinInput").value=""; alertBox("#login-alert","");
+});
+
+/* ---------- staff ---------- */
+async function loadStaff(){
+  const di = $("#dateInput");
+  if(!di.value) di.value = isoToday();
+  di.onchange = updateStaffWeekLabel;
+  updateStaffWeekLabel();
+  renderHistory([]);
+  try{
+    const r = await api({action:"myHistory", name:session.name, pin:session.pin});
+    if(r.ok) renderHistory(r.history);
+  }catch(e){}
+}
+function updateStaffWeekLabel(){
+  const v = $("#dateInput").value;
+  $("#weekLabel").textContent = v ? ("Minggu "+weekLabelFromISO(mondayISO(parseLocal(v)))) : currentWeekLabel();
+}
+function renderHistory(items){
+  const box = $("#staff-history");
+  if(!items.length){ box.innerHTML = '<p class="muted" style="font-size:13.5px;padding:8px 0">Belum ada recap yang dikirim.</p>'; return; }
+  box.innerHTML = items.map(it=>`
+    <div class="hist">
+      <div class="hh">
+        <span class="wk">${esc(it.weekLabel)}</span>
+        <span class="badge ${it.status==='Tepat Waktu'?'b-tepat':'b-telat'}">${esc(it.status)}</span>
+      </div>
+      <p>${esc(it.recap)}</p>
+      ${it.feedback || it.score ? `<div class="fb">
+          ${it.score?`<div class="stars">${stars(it.score)}</div>`:""}
+          ${it.feedback?`<div style="margin-top:4px"><b>Feedback ${feedbackGiver(session.role)}:</b> ${esc(it.feedback)}</div>`:""}
+        </div>`:`<p class="muted" style="font-size:12.5px;margin-top:8px">Belum dinilai ${feedbackGiver(session.role)}.</p>`}
+    </div>`).join("");
+}
+$("#submitBtn").addEventListener("click", submitRecap);
+async function submitRecap(){
+  const forDate = $("#dateInput").value;
+  const recap = $("#recapInput").value.trim();
+  const blockers = $("#blockInput").value.trim();
+  const nextPlan = $("#planInput").value.trim();
+  if(!forDate){ return alertBox("#staff-alert","Pilih tanggal recap dulu.","err"); }
+  if(!recap){ return alertBox("#staff-alert","Bagian pekerjaan minggu ini wajib diisi.","err"); }
+  if(!blockers){ return alertBox("#staff-alert","Bagian kendala/blocker wajib diisi (tulis 'tidak ada' kalau nggak ada).","err"); }
+  if(!nextPlan){ return alertBox("#staff-alert","Bagian rencana minggu depan wajib diisi.","err"); }
+  const btn=$("#submitBtn"); btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Mengirim…';
+  try{
+    const r = await api({action:"submit", name:session.name, pin:session.pin, forDate, recap, blockers, nextPlan});
+    if(!r.ok){ alertBox("#staff-alert", r.error||"Gagal mengirim.","err"); return; }
+    const late = r.status!=="Tepat Waktu";
+    const atasan = session.role==="pejabat" ? "Bapak Menteri" : "Ibu Negara";
+    alertBox("#staff-alert",
+      `✅ Recap terkirim — status: <b>${esc(r.status)}</b>.${late?" (lewat deadline Jumat 19:00)":""} ${atasan} sudah dapat notifikasi email.`,
+      late?"warn":"ok");
+    $("#recapInput").value=$("#blockInput").value=$("#planInput").value="";
+    loadStaff();
+  }catch(e){ alertBox("#staff-alert","Error koneksi. Coba lagi.","err"); }
+  finally{ btn.disabled=false; btn.textContent="Kirim Recap"; }
+}
+
+/* ---------- owner / dashboard ---------- */
+function canScoreMember(m){
+  const v = ownerData.viewerRole;
+  if(v==="owner")   return m.role==="staff" || m.role==="menteri";
+  if(v==="menteri") return m.role==="pejabat";
+  return false;
+}
+function scorerOf(role){ return role==="pejabat" ? "Bapak Menteri" : "Ibu Negara"; }
+async function loadOwner(){
+  $("#owner-list").innerHTML = '<div class="empty">Memuat data…</div>';
+  try{
+    const r = await api({action:"getSubmissions", name:session.name, pin:session.pin});
+    if(!r.ok){ $("#owner-list").innerHTML = `<div class="empty">${esc(r.error||"Gagal memuat.")}</div>`; return; }
+    ownerData = r;
+    $("#ownerTitle").textContent = (r.viewerRole==="menteri") ? "Dashboard Pejabat" : "Dashboard Recap — Semua";
+    buildWeekFilter();
+    renderOwner();
+  }catch(e){ $("#owner-list").innerHTML = '<div class="empty">Error koneksi.</div>'; }
+}
+function buildWeekFilter(){
+  const weeks=[...new Set(ownerData.submissions.map(s=>s.weekOf))].sort().reverse();
+  const cur = mondayISO(new Date());
+  if(!weeks.includes(cur)) weeks.unshift(cur);
+  const sel=$("#weekFilter");
+  sel.innerHTML = '<option value="__ALL__">📊 Semua waktu (rekap)</option>' +
+    weeks.map(w=>`<option value="${w}">${weekLabelFromISO(w)}</option>`).join("");
+  sel.value = cur;            // default ke minggu ini
+  sel.onchange = renderOwner;
+}
+function renderOwner(){
+  const week = $("#weekFilter").value;
+  const members = ownerData.members;
+  if(week==="__ALL__"){ renderAllTime(members); return; }
+  const subs = ownerData.submissions.filter(s=>s.weekOf===week);
+  const byName = {}; subs.forEach(s=>byName[s.name]=s);
+  const showRole = ownerData.viewerRole==="owner"; // tampilkan chip role kalau campur
+
+  let tepat=0,telat=0,absen=0;
+  members.forEach(m=>{ const s=byName[m.name];
+    if(!s) absen++; else if(s.status==="Tepat Waktu") tepat++; else telat++; });
+
+  $("#statsRow").innerHTML = `
+    <div class="stat"><div class="n">${subs.length}/${members.length}</div><div class="l">Sudah submit</div></div>
+    <div class="stat t"><div class="n">${tepat}</div><div class="l">Tepat waktu</div></div>
+    <div class="stat l8"><div class="n">${telat}</div><div class="l">Telat</div></div>
+    <div class="stat a"><div class="n">${absen}</div><div class="l">Absen</div></div>`;
+
+  const rows = members.map(m=>({m, s:byName[m.name]}))
+    .sort((a,b)=> (a.s?0:1)-(b.s?0:1));
+
+  $("#owner-list").innerHTML = rows.map(({m,s})=>{
+    const roleChip = showRole ? `<span class="rolechip">${esc(roleLabel(m.role))}</span>` : "";
+    const canScore = canScoreMember(m);
+    if(!s){
+      return `<div class="card sub-card">
+        <div class="sub-head" style="cursor:default">
+          <div class="sub-who"><div class="avatar">${avatarHTML(m.name, m.photoUrl)}</div>
+            <div><div class="nm"><span class="nm-link" onclick="event.stopPropagation();openProfile('${esc(m.name)}')">${esc(m.name)}</span> ${roleChip}</div><div class="em">${esc(m.email||"")}</div></div></div>
+          <div class="sub-meta">
+            <span class="badge b-absen">Absen</span>
+            ${canScore?`<button class="btn-ghost" onclick="remind('${esc(m.name)}',this)">Ingatkan</button>`:""}
+          </div>
+        </div></div>`;
+    }
+    const badge = s.status==="Tepat Waktu" ? "b-tepat" : "b-telat";
+    const ratingBlock = canScore
+      ? `<div class="blk"><h4>Penilaian kamu</h4>
+          <div class="rate-row" data-id="${esc(s.id)}">
+            ${[1,2,3,4,5].map(i=>`<button class="star-btn ${s.score&&i<=s.score?'on':''}" data-v="${i}" onclick="setStar(this)">★</button>`).join("")}
+          </div>
+        </div>
+        <div class="blk"><h4>Feedback ke ${esc(m.name)}</h4>
+          <textarea id="fb-${esc(s.id)}" placeholder="Tulis feedback…"
+            data-recap="${esc(s.recap)}" data-blockers="${esc(s.blockers||"")}" data-nextplan="${esc(s.nextPlan||"")}"
+            >${esc(s.feedback||"")}</textarea>
+        </div>
+        <div class="ai-row" id="ai-${esc(s.id)}">
+          <button class="btn-ghost" onclick="checkFeedbackAI('${esc(s.id)}',this)">✨ Cek dengan AI</button>
+        </div>
+        <div class="row-actions">
+          <button class="btn sm" onclick="sendFeedback('${esc(s.id)}','${esc(m.name)}',this)">Kirim Feedback (email)</button>
+          <span class="fb-saved" id="fbmsg-${esc(s.id)}"></span>
+        </div>`
+      : `<div class="blk"><h4>Penilaian ${scorerOf(m.role)} <span style="font-weight:400;text-transform:none;letter-spacing:0">(read-only)</span></h4>
+          ${s.score?`<div class="stars">${stars(s.score)}</div>`:""}
+          ${s.feedback?`<p style="margin-top:6px">${esc(s.feedback)}</p>`:(s.score?"":`<p class="muted" style="font-size:13px">Belum dinilai ${scorerOf(m.role)}.</p>`)}
+        </div>`;
+    return `<div class="card sub-card">
+      <div class="sub-head" onclick="toggleBody(this)">
+        <div class="sub-who"><div class="avatar">${avatarHTML(m.name, m.photoUrl)}</div>
+          <div><div class="nm"><span class="nm-link" onclick="event.stopPropagation();openProfile('${esc(m.name)}')">${esc(m.name)}</span> ${roleChip}</div><div class="em">Dikirim ${esc(s.submittedLabel)}</div></div></div>
+        <div class="sub-meta">
+          ${s.score?`<span class="stars" title="penilaian">${stars(s.score)}</span>`:""}
+          <span class="badge ${badge}">${esc(s.status)}</span>
+          <span class="chev">▼</span>
+        </div>
+      </div>
+      <div class="sub-body">
+        <div class="blk"><h4>Pekerjaan minggu ini</h4><p>${esc(s.recap)}</p></div>
+        ${s.blockers?`<div class="blk"><h4>Kendala</h4><p>${esc(s.blockers)}</p></div>`:""}
+        ${s.nextPlan?`<div class="blk"><h4>Rencana minggu depan</h4><p>${esc(s.nextPlan)}</p></div>`:""}
+        ${ratingBlock}
+      </div>
+    </div>`;
+  }).join("");
+}
+function renderAllTime(members){
+  const subs = ownerData.submissions;
+  const showRole = ownerData.viewerRole==="owner";
+  const scoredAll = subs.filter(s=>Number(s.score)>0);
+  const avgAll = scoredAll.length ? scoredAll.reduce((a,s)=>a+Number(s.score),0)/scoredAll.length : 0;
+  const tepat = subs.filter(s=>s.status==="Tepat Waktu").length;
+  const telat = subs.filter(s=>s.status==="Telat").length;
+
+  $("#statsRow").innerHTML = `
+    <div class="stat"><div class="n">${subs.length}</div><div class="l">Total recap</div></div>
+    <div class="stat"><div class="n">${avgAll?avgAll.toFixed(1):"–"}</div><div class="l">Rata-rata skor</div></div>
+    <div class="stat t"><div class="n">${tepat}</div><div class="l">Tepat waktu</div></div>
+    <div class="stat l8"><div class="n">${telat}</div><div class="l">Telat</div></div>`;
+
+  const rows = members.map(m=>{
+    const mine = subs.filter(s=>s.name===m.name);
+    const sc = mine.filter(s=>Number(s.score)>0);
+    const avg = sc.length ? sc.reduce((a,s)=>a+Number(s.score),0)/sc.length : 0;
+    return { m, count:mine.length, avg, scored:sc.length,
+      tepat: mine.filter(s=>s.status==="Tepat Waktu").length,
+      telat: mine.filter(s=>s.status==="Telat").length };
+  }).sort((a,b)=> b.count-a.count || b.avg-a.avg);
+
+  $("#owner-list").innerHTML = rows.map(r=>{
+    const roleChip = showRole ? `<span class="rolechip">${esc(roleLabel(r.m.role))}</span>` : "";
+    const meta = r.count
+      ? `${r.count}× kumpul${r.scored?` · rata-rata ${r.avg.toFixed(1)}`:" · belum dinilai"}`
+      : "Belum pernah kumpul";
+    return `<div class="card sub-card"><div class="sub-head" style="cursor:default">
+      <div class="sub-who"><div class="avatar">${avatarHTML(r.m.name, r.m.photoUrl)}</div>
+        <div><div class="nm"><span class="nm-link" onclick="openProfile('${esc(r.m.name)}')">${esc(r.m.name)}</span> ${roleChip}</div><div class="em">${meta}</div></div></div>
+      <div class="sub-meta">
+        ${r.scored?`<span class="stars" title="rata-rata skor">${stars(Math.round(r.avg))}</span>`:""}
+        <span class="badge b-tepat">${r.tepat} tepat</span>
+        <span class="badge b-telat">${r.telat} telat</span>
+      </div></div></div>`;
+  }).join("");
+}
+function toggleBody(head){
+  const body = head.parentElement.querySelector(".sub-body");
+  body.classList.toggle("open");
+  const chev = head.querySelector(".chev"); if(chev) chev.style.transform = body.classList.contains("open")?"rotate(180deg)":"";
+}
+
+/* ---------- all-stats (Ibu Penasihat) ---------- */
+async function loadAllStats(){
+  $("#allstats-list").innerHTML = '<div class="empty">Memuat data…</div>';
+  try{
+    const r = await api({action:"getAllStats", name:session.name, pin:session.pin});
+    if(!r.ok){ $("#allstats-list").innerHTML = `<div class="empty">${esc(r.error||"Gagal memuat.")}</div>`; return; }
+    renderAllStats(r.stats);
+  }catch(e){ $("#allstats-list").innerHTML = '<div class="empty">Error koneksi.</div>'; }
+}
+function renderAllStats(stats){
+  if(!stats.length){ $("#allstats-list").innerHTML = '<div class="empty">Belum ada data.</div>'; return; }
+  const rows = [...stats].sort((a,b)=> b.count-a.count || b.avgScore-a.avgScore);
+  $("#allstats-list").innerHTML = rows.map(r=>{
+    const youChip = (r.name===session.name) ? '<span class="rolechip">Kamu</span>' : "";
+    return `<div class="card sub-card"><div class="sub-head" style="cursor:default">
+      <div class="sub-who"><div class="avatar">${avatarHTML(r.name, r.photoUrl)}</div>
+        <div><div class="nm"><span class="nm-link" onclick="openProfile('${esc(r.name)}')">${esc(r.name)}</span> <span class="rolechip">${esc(roleLabel(r.role))}</span> ${youChip}</div>
+          <div class="em">${r.count} kali kumpul${r.scoredCount?` · rata-rata ${r.avgScore.toFixed(1)} ★`:" · belum dinilai"}</div></div></div>
+      <div class="sub-meta">
+        <span class="badge b-tepat">${r.tepat} tepat</span>
+        <span class="badge b-telat">${r.telat} telat</span>
+        <span class="badge b-absen">${r.absen} absen</span>
+      </div></div></div>`;
+  }).join("");
+}
+function setStar(btn){
+  const row = btn.parentElement; const v = +btn.dataset.v;
+  row.dataset.score = v;
+  [...row.children].forEach(b=> b.classList.toggle("on", +b.dataset.v<=v));
+}
+async function sendFeedback(id, name, btn){
+  const row = document.querySelector(`.rate-row[data-id="${id}"]`);
+  const score = row.dataset.score || (row.querySelectorAll(".star-btn.on").length||0);
+  const feedback = $(`#fb-${id}`).value.trim();
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Mengirim…';
+  try{
+    const r = await api({action:"sendFeedback", name:session.name, pin:session.pin, id, score:Number(score)||0, feedback});
+    const msg=$(`#fbmsg-${id}`);
+    if(r.ok){ msg.textContent="✓ Terkirim ke "+name;
+      const s=ownerData.submissions.find(x=>x.id===id); if(s){s.score=Number(score)||0;s.feedback=feedback;} }
+    else msg.textContent="✗ "+(r.error||"gagal");
+  }catch(e){ $(`#fbmsg-${id}`).textContent="✗ error koneksi"; }
+  finally{ btn.disabled=false; btn.textContent="Kirim Feedback (email)"; }
+}
+async function remind(name, btn){
+  btn.disabled=true; btn.textContent="…";
+  try{
+    const r = await api({action:"remind", name:session.name, pin:session.pin, target:name});
+    btn.textContent = r.ok ? "✓ Diingatkan" : "✗ gagal";
+  }catch(e){ btn.textContent="✗ error"; }
+}
+
+/* ---------- profile modal ---------- */
+let profileTargetName = null;
+async function openProfile(name){
+  profileTargetName = name;
+  $("#profileOverlay").classList.remove("hidden");
+  setAvatar($("#pf-avatar"), name, "");
+  $("#pf-name").textContent = name;
+  $("#pf-position").textContent = "";
+  $("#pf-photo-btn").classList.add("hidden");
+  $("#pf-body").innerHTML = '<div class="empty">Memuat profil…</div>';
+  try{
+    const r = await api({action:"getProfile", name:session.name, pin:session.pin, target:name});
+    if(!r.ok){ $("#pf-body").innerHTML = `<div class="empty">${esc(r.error||"Gagal memuat profil.")}</div>`; return; }
+    renderProfile(r.profile);
+  }catch(e){ $("#pf-body").innerHTML = '<div class="empty">Error koneksi.</div>'; }
+}
+function closeProfile(){ $("#profileOverlay").classList.add("hidden"); }
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeProfile(); });
+
+function renderProfile(p){
+  setAvatar($("#pf-avatar"), p.namaLengkap || p.name, p.photoUrl);
+  $("#pf-name").textContent = p.namaLengkap || p.name;
+  $("#pf-position").textContent = p.position || roleLabel(p.role);
+  $("#pf-photo-btn").classList.toggle("hidden", p.name !== session.name);
+  const row=(lab,val)=> val ? `<div class="pf-row"><span class="lab">${esc(lab)}</span><span class="val">${esc(val)}</span></div>` : "";
+  $("#pf-body").innerHTML = `
+    <div class="pf-pair">
+      <div class="pf-box"><div class="pf-num">${p.submittedCount}</div><div class="l">Submitted Report</div></div>
+      <div class="pf-box"><div class="pf-num">${p.avgScore?p.avgScore.toFixed(1)+" ★":"–"}</div><div class="l">Average Score</div></div>
+    </div>
+    ${row("Nama Lengkap", p.namaLengkap)}
+    ${row("Tempat, Tanggal Lahir", p.ttl)}
+    ${row("Join Date", p.joinDate)}
+    ${row("Position", p.position)}
+    ${row("Status", p.employeeStatus)}
+    ${row("Note from HR", p.note)}
+    ${(!p.ttl && !p.joinDate && !p.employeeStatus && !p.note) ? '<p class="muted" style="font-size:13px;margin-top:6px">Data HR belum diisi di sheet <b>Profiles</b>.</p>' : ""}
+  `;
+}
+
+/* ---------- upload foto profil ---------- */
+// Resize/kompres gambar di browser (target ~1MB) sebelum dikirim ke backend.
+function compressImage(file, maxDim=512, quality=0.85){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = ()=>{ img.onload = ()=>{
+      let {width:w, height:h} = img;
+      if(w>maxDim || h>maxDim){ const scale=Math.min(maxDim/w, maxDim/h); w=Math.round(w*scale); h=Math.round(h*scale); }
+      const canvas = document.createElement("canvas"); canvas.width=w; canvas.height=h;
+      canvas.getContext("2d").drawImage(img,0,0,w,h);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    }; img.onerror=reject; img.src=reader.result; };
+    reader.onerror=reject; reader.readAsDataURL(file);
+  });
+}
+async function handlePhotoChange(ev, targetSel){
+  const file = ev.target.files && ev.target.files[0];
+  if(!file) return;
+  const el = $(targetSel);
+  const prevPhoto = session.photoUrl||"";
+  (el.querySelector(".avatar-content")||el).innerHTML = '<span class="spinner" style="border-top-color:var(--teal)"></span>';
+  try{
+    const dataUrl = await compressImage(file);
+    const r = await api({action:"uploadPhoto", name:session.name, pin:session.pin, dataUrl});
+    if(!r.ok){
+      alert(r.error || "Gagal mengunggah foto.");
+      setAvatar(el, session.name, prevPhoto);
+      return;
+    }
+    session.photoUrl = r.photoUrl;
+    // refresh semua tempat avatar diri sendiri ditampilkan
+    setAvatar($("#whoAvatar"), session.name, session.photoUrl);
+    if(profileTargetName===session.name) setAvatar($("#pf-avatar"), session.name, session.photoUrl);
+    // refresh list yg sedang tampil (dashboard owner/menteri/penasihat) biar foto baru ikut update
+    if(ownerData) renderOwner();
+    if(!$("#view-allstats").classList.contains("hidden")) loadAllStats();
+  }catch(e){
+    alert("Gagal mengunggah foto. Coba lagi.");
+    setAvatar(el, session.name, prevPhoto);
+  }finally{
+    ev.target.value = ""; // reset input biar bisa pilih file yg sama lagi
+  }
+}
+
+/* ---------- AI feedback checker ---------- */
+async function checkFeedbackAI(id, btn){
+  const ta = $(`#fb-${id}`);
+  const feedback = ta.value.trim();
+  const box = $(`#ai-${id}`);
+  if(!feedback){ box.innerHTML = `<span class="ai-note">Tulis feedback dulu, baru bisa dicek AI.</span>`; return; }
+  btn.disabled=true; const orig=btn.innerHTML; btn.innerHTML='<span class="spinner"></span>Mengecek…';
+  const recap = ta.dataset.recap||"", blockers=ta.dataset.blockers||"", nextplan=ta.dataset.nextplan||"";
+  const prompt = `Kamu adalah asisten HR yang menilai apakah FEEDBACK dari atasan sudah cukup lengkap & relevan menanggapi REPORT mingguan staff.
+
+REPORT STAFF:
+- Pekerjaan: ${recap}
+- Kendala: ${blockers}
+- Rencana minggu depan: ${nextplan}
+
+FEEDBACK ATASAN:
+${feedback}
+
+Nilai apakah feedback ini sudah relevan & cukup lengkap (idealnya menanggapi pekerjaan, kendala, dan/atau rencana di atas; tidak harus ketiganya, tapi minimal menyentuh salah satu poin penting secara spesifik, bukan komentar generik seperti "bagus, lanjutkan").
+
+Balas HANYA dengan JSON murni (tanpa markdown/backtick), format persis:
+{"ok": true/false, "note": "satu kalimat singkat dlm Bahasa Indonesia, max 20 kata"}`;
+  try{
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:200, messages:[{role:"user", content:prompt}] })
+    });
+    const data = await res.json();
+    const text = (data.content||[]).map(c=>c.text||"").join("").replace(/```json|```/g,"").trim();
+    const parsed = JSON.parse(text);
+    box.innerHTML = parsed.ok
+      ? `<span class="ai-badge ai-ok">✅ Cukup lengkap</span><span class="ai-note">${esc(parsed.note||"")}</span>`
+      : `<span class="ai-badge ai-warn">⚠️ Kurang spesifik</span><span class="ai-note">${esc(parsed.note||"")}</span>`;
+  }catch(e){
+    box.innerHTML = `<span class="ai-note">Gagal cek AI, coba lagi.</span>`;
+  }finally{ btn.disabled=false; btn.innerHTML=orig; }
+}
+
+/* ---------- week helpers (sinkron dgn backend, Senin–Minggu) ---------- */
+function isoToday(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function parseLocal(s){ const p=String(s).split("T")[0].split("-").map(Number); return new Date(p[0], p[1]-1, p[2]); }
+function mondayISO(d){ const x=new Date(d); const day=x.getDay(); const diff=(day===0?-6:1-day);
+  x.setDate(x.getDate()+diff); return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0"); }
+function weekLabelFromISO(iso){ const [y,m,d]=String(iso).split("T")[0].split("-").map(Number); const mon=new Date(y,m-1,d);
+  const sun=new Date(mon); sun.setDate(mon.getDate()+6);
+  const f={day:"numeric",month:"short"};
+  return mon.toLocaleDateString("id-ID",f)+" – "+sun.toLocaleDateString("id-ID",{...f,year:"numeric"}); }
+function currentWeekLabel(){ return "Minggu "+weekLabelFromISO(mondayISO(new Date())); }
+
+init();
+</script>
+</body>
+</html>  h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;letter-spacing:-.01em;line-height:1.1}
+  .muted{color:var(--ink-soft)}
+  .hidden{display:none !important}
+
+  /* ---- header ---- */
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:26px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{width:42px;height:42px;border-radius:12px;background:var(--teal);color:#fff;display:grid;place-items:center;font-family:'Fraunces';font-size:22px;font-weight:600;box-shadow:var(--shadow)}
+  .brand h1{font-size:23px}
+  .brand p{font-size:12.5px;color:var(--ink-soft);margin-top:1px}
+  .whoami{display:flex;align-items:center;gap:10px;font-size:13.5px}
+  .whoami .pill{background:var(--surface);border:1px solid var(--line);padding:7px 13px;border-radius:999px;font-weight:600;box-shadow:var(--shadow)}
+  .btn-ghost{background:none;border:1px solid var(--line);color:var(--ink-soft);padding:7px 13px;border-radius:999px;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+  .btn-ghost:hover{border-color:var(--teal);color:var(--teal)}
+
+  /* ---- card / surface ---- */
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .pad{padding:22px}
+
+  /* ---- login ---- */
+  .login-shell{max-width:420px;margin:7vh auto 0}
+  .login-shell .logo{width:54px;height:54px;font-size:28px;margin:0 auto 18px}
+  .login-shell h1{font-size:28px;text-align:center}
+  .login-shell .sub{text-align:center;color:var(--ink-soft);font-size:14px;margin:8px 0 26px}
+  label{display:block;font-size:13px;font-weight:600;margin:0 0 7px;color:var(--ink)}
+  select,input,textarea{
+    width:100%;font:inherit;font-size:15px;color:var(--ink);
+    background:var(--paper);border:1px solid var(--line);border-radius:11px;padding:12px 14px;outline:none;transition:.15s;
+  }
+  textarea{resize:vertical;min-height:90px;line-height:1.55}
+  select:focus,input:focus,textarea:focus{border-color:var(--teal);background:#fff;box-shadow:0 0 0 3px var(--teal-soft)}
+  .field{margin-bottom:16px}
+  .btn{
+    width:100%;background:var(--teal);color:#fff;border:none;border-radius:12px;
+    padding:13px 16px;font:inherit;font-size:15px;font-weight:700;cursor:pointer;transition:.15s;
+  }
+  .btn:hover{background:var(--teal-d)}
+  .btn:disabled{opacity:.55;cursor:default}
+  .btn.sm{width:auto;padding:9px 16px;font-size:13.5px;border-radius:10px}
+  .alert{font-size:13.5px;padding:11px 14px;border-radius:11px;margin-bottom:14px}
+  .alert.err{background:var(--rose-bg);color:var(--rose)}
+  .alert.ok{background:var(--green-bg);color:var(--green)}
+  .alert.warn{background:var(--amber-bg);color:var(--amber)}
+
+  /* ---- badges ---- */
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;letter-spacing:.01em}
+  .badge::before{content:"";width:6px;height:6px;border-radius:999px;background:currentColor}
+  .b-tepat{background:var(--green-bg);color:var(--green)}
+  .b-telat{background:var(--amber-bg);color:var(--amber)}
+  .b-absen{background:var(--rose-bg);color:var(--rose)}
+  .b-belum{background:var(--slate-bg);color:var(--slate)}
+
+  /* ---- staff form ---- */
+  .week-tag{display:inline-flex;align-items:center;gap:8px;background:var(--teal-soft);color:var(--teal-d);font-weight:600;font-size:13px;padding:7px 13px;border-radius:999px;margin-bottom:18px}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:600px){.grid-2{grid-template-columns:1fr}}
+
+  /* ---- history items ---- */
+  .hist{border:1px solid var(--line);border-radius:12px;padding:15px 16px;margin-top:12px;background:var(--paper)}
+  .hist .hh{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:9px}
+  .hist .wk{font-weight:700;font-size:13.5px}
+  .hist p{font-size:13.5px;white-space:pre-wrap}
+  .hist .fb{margin-top:11px;padding:11px 13px;background:var(--teal-soft);border-radius:10px;font-size:13px}
+  .hist .fb b{color:var(--teal-d)}
+  .stars{color:#d98c00;letter-spacing:2px;font-size:14px}
+
+  /* ---- owner dashboard ---- */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0}
+  @media(max-width:680px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:var(--shadow)}
+  .stat .n{font-family:'Fraunces';font-size:30px;font-weight:600;line-height:1}
+  .stat .l{font-size:12px;color:var(--ink-soft);margin-top:6px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+  .stat.t .n{color:var(--green)} .stat.l8 .n{color:var(--amber)} .stat.a .n{color:var(--rose)}
+
+  .toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  .toolbar h2{font-size:21px}
+  .week-sel{display:flex;align-items:center;gap:8px}
+  .week-sel select{width:auto;padding:9px 12px;font-size:14px}
+
+  .sub-card{margin-top:14px}
+  .sub-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line);cursor:pointer}
+  .sub-head:hover{background:var(--paper)}
+  .sub-who{display:flex;align-items:center;gap:12px;min-width:0}
+  .avatar{width:36px;height:36px;border-radius:10px;background:var(--paper2);color:var(--teal-d);display:grid;place-items:center;font-weight:700;font-size:14px;flex-shrink:0}
+  .sub-who .nm{font-weight:700;font-size:15px}
+  .sub-who .em{font-size:12px;color:var(--ink-soft)}
+  .rolechip{display:inline-block;font-size:10.5px;font-weight:700;color:var(--teal-d);background:var(--teal-soft);padding:1px 7px;border-radius:999px;vertical-align:middle;letter-spacing:.02em}
+  .sub-meta{display:flex;align-items:center;gap:10px;flex-shrink:0}
+  .chev{color:var(--ink-soft);transition:.2s;font-size:13px}
+  .sub-body{padding:4px 20px 20px;display:none}
+  .sub-body.open{display:block}
+  .blk{margin-top:14px}
+  .blk h4{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:5px}
+  .blk p{font-size:14px;white-space:pre-wrap}
+  .rate-row{display:flex;align-items:center;gap:6px;margin:6px 0 14px}
+  .star-btn{font-size:24px;color:#d9d2c4;cursor:pointer;line-height:1;transition:.1s;background:none;border:none;padding:0}
+  .star-btn.on{color:#e8a317}
+  .fb-saved{font-size:12.5px;color:var(--green);font-weight:600;margin-top:6px}
+  .row-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+  .empty{text-align:center;color:var(--ink-soft);padding:40px 20px;font-size:14px}
+  .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:-3px;margin-right:7px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .config-warn{background:var(--amber-bg);color:var(--amber);border-radius:12px;padding:14px 16px;font-size:13.5px;margin-bottom:18px}
+  code{background:var(--paper2);padding:1px 6px;border-radius:5px;font-size:12.5px}
+
+  /* ---- nama bisa diklik utk profil ---- */
+  .nm-link{cursor:pointer;text-decoration:underline;text-decoration-color:transparent;transition:.15s}
+  .nm-link:hover{text-decoration-color:var(--teal)}
+
+  /* ---- profile modal ---- */
+  .modal-overlay{position:fixed;inset:0;background:rgba(34,37,31,.45);display:flex;align-items:center;justify-content:center;padding:18px;z-index:50}
+  .modal-card{background:var(--surface);border-radius:18px;max-width:480px;width:100%;max-height:88vh;overflow:auto;box-shadow:0 20px 60px -20px rgba(0,0,0,.35)}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:18px 18px 14px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--surface)}
+  .modal-body{padding:6px 20px 22px}
+  .pf-row{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+  .pf-row:last-child{border-bottom:none}
+  .pf-row .lab{color:var(--ink-soft);font-weight:600;flex-shrink:0}
+  .pf-row .val{text-align:right;max-width:62%;white-space:pre-wrap}
+  .pf-num{font-family:'Fraunces';font-size:22px;font-weight:600}
+  .pf-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:4px 0 10px}
+  .pf-box{background:var(--paper);border-radius:12px;padding:12px;text-align:center}
+  .pf-box .l{font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;margin-top:3px}
+
+  /* ---- AI feedback checker ---- */
+  .ai-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:8px 0 4px}
+  .ai-badge{font-size:12.5px;font-weight:700;padding:5px 11px;border-radius:999px;display:inline-flex;align-items:center;gap:6px}
+  .ai-ok{background:var(--green-bg);color:var(--green)}
+  .ai-warn{background:var(--amber-bg);color:var(--amber)}
+  .ai-note{font-size:12.5px;color:var(--ink-soft);flex-basis:100%}
 </style>
 </head>
 <body>
