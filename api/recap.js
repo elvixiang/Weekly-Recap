@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
 
   // ⬇️ Ganti dengan URL Web App /exec kamu
-  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyOYUQGZ2_Z9Tdx3ZAYd60YXmLzkg-zaxgZzLW-UJHs8sVA1seDnhY-VFuclxboA0AHYw/exec";
+  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwejj_dOgiuiOOJRQfXAxLjVePCKMl6etOnP1MKg1KgT20dsmlul79CL6c12QTm_sVWXg/exec";
 
   // === MODE DIAGNOSTIK ===  buka di browser: /api/recap?test=1
   if (req.method === "GET") {
