@@ -291,6 +291,26 @@
     <div id="allstats-list"></div>
   </section>
 
+  <!-- ================= HR NOTE (Ibu Penasihat) ================= -->
+  <section id="view-hrnote" class="hidden tab-pane" style="margin-top:0">
+    <div class="card pad">
+      <h2 style="font-size:19px;margin-bottom:4px">HR Note</h2>
+      <p class="muted" style="font-size:13px;margin-bottom:18px">
+        Tulis evaluasi terbaru untuk staff yang dipilih. Isian ini akan <b>menggantikan</b> "Note from HR" sebelumnya di profil staff tersebut — bukan ditambahkan.
+      </p>
+      <div id="hrnote-alert"></div>
+      <div class="field">
+        <label for="hrnoteStaffSel">Pilih staff</label>
+        <select id="hrnoteStaffSel"><option value="">— pilih —</option></select>
+      </div>
+      <div class="field">
+        <label for="hrnoteInput">Evaluasi / catatan</label>
+        <textarea id="hrnoteInput" placeholder="Tulis evaluasi terbaru…"></textarea>
+      </div>
+      <button class="btn" id="hrnoteSaveBtn">Simpan sebagai Note from HR</button>
+    </div>
+  </section>
+
 </div>
 
 <!-- ================= PROFILE MODAL ================= -->
@@ -328,6 +348,7 @@ const $ = s => document.querySelector(s);
 const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let session = null;        // {name, pin, role, email}
 let ownerData = null;      // {submissions, team}
+let allStatsData = null;   // hasil getAllStats, dipakai juga utk dropdown HR Note
 
 async function api(payload){
   const res = await fetch(APPS_SCRIPT_URL, {
@@ -422,11 +443,14 @@ function showApp(){
     $("#role-label").textContent = "Mode Ibu Penasihat — lapor ke Ibu Negara & pantau semua staff";
     $("#view-staff").classList.remove("hidden");      // form lapor dia sendiri
     $("#view-allstats").classList.remove("hidden");   // rekap all-time semua orang
+    $("#view-hrnote").classList.remove("hidden");     // catatan HR per staff
     loadStaff();
     loadAllStats();
+    loadHRNoteOptions();
     setupTabs([
       {id:"view-staff", label:"Recap Saya"},
-      {id:"view-allstats", label:"Rekap Semua Staff"}
+      {id:"view-allstats", label:"Rekap Semua Staff"},
+      {id:"view-hrnote", label:"HR Note"}
     ]);
   }else{
     $("#role-label").textContent = "Mode Staff — lapor mingguan ke Ibu Negara";
@@ -463,7 +487,7 @@ function switchTab(targetId){
 
 $("#logoutBtn").addEventListener("click", ()=>{
   session=null; ownerData=null;
-  ["#view-staff","#view-owner","#view-allstats","#topbar"].forEach(s=>$(s).classList.add("hidden"));
+  ["#view-staff","#view-owner","#view-allstats","#view-hrnote","#topbar"].forEach(s=>$(s).classList.add("hidden"));
   $("#tabbar").classList.add("hidden"); $("#tabbar").innerHTML="";
   document.querySelectorAll(".tab-pane").forEach(p=>p.classList.remove("active"));
   $("#view-login").classList.remove("hidden");
@@ -683,7 +707,9 @@ async function loadAllStats(){
   try{
     const r = await api({action:"getAllStats", name:session.name, pin:session.pin});
     if(!r.ok){ $("#allstats-list").innerHTML = `<div class="empty">${esc(r.error||"Gagal memuat.")}</div>`; return; }
+    allStatsData = r.stats;
     renderAllStats(r.stats);
+    populateHRNoteDropdown();
   }catch(e){ $("#allstats-list").innerHTML = '<div class="empty">Error koneksi.</div>'; }
 }
 function renderAllStats(stats){
@@ -701,6 +727,53 @@ function renderAllStats(stats){
         <span class="badge b-absen">${r.absen} absen</span>
       </div></div></div>`;
   }).join("");
+}
+
+/* ---------- HR Note (Ibu Penasihat) ---------- */
+function loadHRNoteOptions(){
+  // dropdown bergantung pada allStatsData; kalau belum siap, populate akan dipanggil ulang dari loadAllStats
+  if(allStatsData) populateHRNoteDropdown();
+}
+function populateHRNoteDropdown(){
+  const sel = $("#hrnoteStaffSel");
+  const prev = sel.value;
+  const rows = [...allStatsData].sort((a,b)=> a.name.localeCompare(b.name));
+  sel.innerHTML = '<option value="">— pilih —</option>' +
+    rows.map(r=>`<option value="${esc(r.name)}">${esc(r.name)} (${esc(roleLabel(r.role))})</option>`).join("");
+  if(prev && rows.some(r=>r.name===prev)) sel.value = prev;
+}
+$("#hrnoteStaffSel").addEventListener("change", loadHRNoteCurrent);
+async function loadHRNoteCurrent(){
+  const name = $("#hrnoteStaffSel").value;
+  const ta = $("#hrnoteInput");
+  alertBox("#hrnote-alert","");
+  if(!name){ ta.value=""; return; }
+  ta.value = "Memuat…"; ta.disabled = true;
+  try{
+    const r = await api({action:"getProfile", name:session.name, pin:session.pin, target:name});
+    ta.value = r.ok ? (r.profile.note||"") : "";
+    if(!r.ok) alertBox("#hrnote-alert", r.error||"Gagal memuat catatan saat ini.","err");
+  }catch(e){
+    ta.value = ""; alertBox("#hrnote-alert","Error koneksi saat memuat catatan.","err");
+  }finally{ ta.disabled = false; }
+}
+$("#hrnoteSaveBtn").addEventListener("click", saveHRNote);
+async function saveHRNote(){
+  const name = $("#hrnoteStaffSel").value;
+  const note = $("#hrnoteInput").value.trim();
+  if(!name){ return alertBox("#hrnote-alert","Pilih staff dulu ya.","err"); }
+  const btn = $("#hrnoteSaveBtn"); btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Menyimpan…';
+  try{
+    const r = await api({action:"updateHRNote", name:session.name, pin:session.pin, target:name, note});
+    if(!r.ok){ alertBox("#hrnote-alert", r.error||"Gagal menyimpan.","err"); return; }
+    alertBox("#hrnote-alert", `✅ Note from HR untuk <b>${esc(name)}</b> sudah diperbarui.`, "ok");
+    // kalau profil orang ini sedang terbuka, sinkronkan tampilannya
+    if(profileTargetName===name){
+      const cur = await api({action:"getProfile", name:session.name, pin:session.pin, target:name});
+      if(cur.ok) renderProfile(cur.profile);
+    }
+  }catch(e){ alertBox("#hrnote-alert","Error koneksi. Coba lagi.","err"); }
+  finally{ btn.disabled=false; btn.textContent="Simpan sebagai Note from HR"; }
 }
 function setStar(btn){
   const row = btn.parentElement; const v = +btn.dataset.v;
