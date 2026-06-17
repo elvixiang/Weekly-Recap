@@ -184,6 +184,33 @@
     opacity:0;cursor:pointer;transition:.15s;border:none;font-family:inherit;line-height:1.2;padding:4px}
   .pf-avatar-wrap:hover .pf-photo-btn, .pf-avatar-wrap:focus-within .pf-photo-btn{opacity:1}
   .pf-photo-input{display:none}
+
+  /* ---- shoutout banner ---- */
+  .shoutout-banner{background:linear-gradient(135deg,#0c423f 0%,#115e59 100%);color:#fff;border-radius:16px;padding:18px 20px;margin-bottom:22px}
+  .shoutout-banner .so-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;opacity:.7;margin-bottom:10px}
+  .shoutout-banner .so-row{display:flex;align-items:flex-start;gap:10px;padding:7px 0;border-top:1px solid rgba(255,255,255,.12)}
+  .shoutout-banner .so-row:first-of-type{border-top:none}
+  .shoutout-banner .so-name{font-weight:700;font-size:14px;min-width:90px;flex-shrink:0}
+  .shoutout-banner .so-msg{font-size:13.5px;opacity:.9;line-height:1.45}
+  .shoutout-banner .so-from{font-size:11px;opacity:.55;margin-top:8px}
+
+  /* ---- task badge di dashboard ---- */
+  .task-badge{font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--paper2);color:var(--ink-soft);white-space:nowrap}
+  .task-badge.has-open{background:#fbe7e7;color:var(--rose)}
+  .task-badge.all-done{background:var(--green-bg);color:var(--green)}
+
+  /* ---- task card (tab Task) ---- */
+  .task-card{border:1px solid var(--line);border-radius:12px;padding:15px 16px;margin-top:12px;background:var(--surface)}
+  .task-card .tc-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px}
+  .task-card .tc-from{font-size:12px;color:var(--ink-soft);font-weight:600}
+  .task-card .tc-msg{font-size:14px;white-space:pre-wrap;margin:6px 0 10px}
+  .task-card .tc-status{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .status-sel{font:inherit;font-size:13px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper);cursor:pointer}
+  .status-sel.done{border-color:var(--green);color:var(--green);font-weight:700}
+  .tc-note{width:100%;margin-top:8px;font:inherit;font-size:13.5px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--paper);resize:vertical;min-height:60px}
+  .tc-save{font:inherit;font-size:13px;font-weight:700;background:var(--teal);color:#fff;border:none;border-radius:8px;padding:7px 14px;cursor:pointer;margin-top:6px}
+  .tc-att{font-size:12px;color:var(--teal-d);margin-top:4px;display:block}
+  .tc-att a{color:inherit}
 </style>
 </head>
 <body>
@@ -230,6 +257,8 @@
   </div>
 
   <!-- ================= TAB BAR (multi-section roles) ================= -->
+  <!-- shoutout banner muncul di sini setelah login, di atas tab -->
+  <div id="shoutout-banner" class="shoutout-banner hidden" style="margin-top:8px"></div>
   <div id="tabbar" class="tabbar hidden"></div>
 
   <!-- ================= STAFF ================= -->
@@ -311,6 +340,54 @@
     </div>
   </section>
 
+  <!-- ================= SHOUTOUT (Ibu Negara & Bapak Menteri) ================= -->
+  <section id="view-shoutout" class="hidden tab-pane" style="margin-top:0">
+    <div class="card pad">
+      <h2 style="font-size:19px;margin-bottom:4px">Shoutout Minggu Ini ✨</h2>
+      <p class="muted" style="font-size:13px;margin-bottom:18px">
+        Tambah nama &amp; pesan apresiasi. Set baru akan <b>menggantikan</b> shoutout sebelumnya dan langsung tampil di halaman semua orang.
+      </p>
+      <div id="shoutout-alert"></div>
+      <div id="shoutout-entries"></div>
+      <button class="btn-ghost" id="addShoutoutEntryBtn" style="margin:10px 0 16px;width:auto;padding:8px 16px">+ Tambah orang</button>
+      <button class="btn" id="publishShoutoutBtn">Publish Shoutout</button>
+    </div>
+    <div class="card pad" style="margin-top:14px">
+      <h3 style="font-size:15px;margin-bottom:10px">Preview aktif saat ini</h3>
+      <div id="shoutout-preview"><p class="muted" style="font-size:13.5px">Memuat…</p></div>
+    </div>
+  </section>
+
+  <!-- ================= TASK (semua role) ================= -->
+  <section id="view-task" class="hidden tab-pane" style="margin-top:0">
+    <div id="task-assign-panel" class="card pad hidden" style="margin-bottom:16px">
+      <h2 style="font-size:19px;margin-bottom:4px">Beri Task</h2>
+      <div id="task-assign-alert"></div>
+      <div class="grid-2" style="margin-top:12px">
+        <div class="field">
+          <label for="taskTargetSel">Target</label>
+          <select id="taskTargetSel"><option value="">— pilih —</option></select>
+        </div>
+        <div class="field">
+          <label for="taskMsgInput">Isi tugas</label>
+          <textarea id="taskMsgInput" placeholder="Tulis tugas yang diberikan…"></textarea>
+        </div>
+      </div>
+      <button class="btn" id="sendTaskBtn">Kirim Task (+ email notif)</button>
+    </div>
+    <div id="task-list-wrap">
+      <div class="toolbar" style="margin-bottom:10px">
+        <h2 id="task-list-title" style="font-size:19px">Daftar Task</h2>
+        <select id="task-filter" onchange="renderTaskList()">
+          <option value="all">Semua status</option>
+          <option value="Open">Open</option>
+          <option value="Done">Done</option>
+        </select>
+      </div>
+      <div id="task-list"></div>
+    </div>
+  </section>
+
 </div>
 
 <!-- ================= PROFILE MODAL ================= -->
@@ -349,6 +426,8 @@ const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'
 let session = null;        // {name, pin, role, email}
 let ownerData = null;      // {submissions, team}
 let allStatsData = null;   // hasil getAllStats, dipakai juga utk dropdown HR Note
+let myTasksData = [];      // task milik sendiri (untuk badge & tab Task)
+let allTasksData = [];     // semua task (untuk owner/menteri dashboard & tab Task)
 
 async function api(payload){
   const res = await fetch(APPS_SCRIPT_URL, {
@@ -419,44 +498,63 @@ function showApp(){
   $("#whoPill").textContent = session.name;
   setAvatar($("#whoAvatar"), session.name, session.photoUrl);
   const role = session.role;
+  loadShoutoutBanner(); // banner tampil untuk semua role
   if(role==="owner"){
-    $("#role-label").textContent = "Mode Ibu Negara — pantau semua & nilai Bapak Menteri/Staff";
+    $("#role-label").textContent = "Mode Ibu Negara — pantau semua & nilai";
     $("#view-owner").classList.remove("hidden");
-    loadOwner();
-    setupTabs([]); // single view, no tabs
-  }else if(role==="menteri"){
-    $("#role-label").textContent = "Mode Bapak Menteri — lapor ke Ibu Negara & nilai Pejabat";
-    $("#view-staff").classList.remove("hidden");   // form lapor dia sendiri
-    $("#view-owner").classList.remove("hidden");   // dashboard Pejabat
-    loadStaff();
-    loadOwner();
+    $("#view-shoutout").classList.remove("hidden");
+    $("#view-task").classList.remove("hidden");
+    loadOwner(); loadShoutoutAdmin(); loadAllTasksOwner();
     setupTabs([
-      {id:"view-staff", label:"Recap Saya"},
-      {id:"view-owner", label:"Dashboard Pejabat"}
+      {id:"view-owner",   label:"Dashboard"},
+      {id:"view-shoutout",label:"Shoutout ✨"},
+      {id:"view-task",    label:"Task"}
+    ]);
+  }else if(role==="menteri"){
+    $("#role-label").textContent = "Mode Bapak Menteri — lapor & nilai Pejabat";
+    $("#view-staff").classList.remove("hidden");
+    $("#view-owner").classList.remove("hidden");
+    $("#view-shoutout").classList.remove("hidden");
+    $("#view-task").classList.remove("hidden");
+    loadStaff(); loadOwner(); loadShoutoutAdmin(); loadAllTasksOwner();
+    setupTabs([
+      {id:"view-staff",   label:"Recap Saya"},
+      {id:"view-owner",   label:"Dashboard Pejabat"},
+      {id:"view-shoutout",label:"Shoutout ✨"},
+      {id:"view-task",    label:"Task"}
     ]);
   }else if(role==="pejabat"){
     $("#role-label").textContent = "Mode Pejabat — lapor mingguan ke Bapak Menteri";
     $("#view-staff").classList.remove("hidden");
-    loadStaff();
-    setupTabs([]);
-  }else if(role==="penasihat"){
-    $("#role-label").textContent = "Mode Ibu Penasihat — lapor ke Ibu Negara & pantau semua staff";
-    $("#view-staff").classList.remove("hidden");      // form lapor dia sendiri
-    $("#view-allstats").classList.remove("hidden");   // rekap all-time semua orang
-    $("#view-hrnote").classList.remove("hidden");     // catatan HR per staff
-    loadStaff();
-    loadAllStats();
-    loadHRNoteOptions();
+    $("#view-task").classList.remove("hidden");
+    loadStaff(); loadMyTasks();
     setupTabs([
       {id:"view-staff", label:"Recap Saya"},
-      {id:"view-allstats", label:"Rekap Semua Staff"},
-      {id:"view-hrnote", label:"HR Note"}
+      {id:"view-task",  label:"Task"}
+    ]);
+  }else if(role==="penasihat"){
+    $("#role-label").textContent = "Mode Ibu Penasihat — lapor ke Ibu Negara & pantau semua staff";
+    $("#view-staff").classList.remove("hidden");
+    $("#view-allstats").classList.remove("hidden");
+    $("#view-hrnote").classList.remove("hidden");
+    $("#view-task").classList.remove("hidden");
+    loadStaff(); loadAllStats(); loadHRNoteOptions(); loadMyTasks();
+    setupTabs([
+      {id:"view-staff",   label:"Recap Saya"},
+      {id:"view-allstats",label:"Rekap Semua Staff"},
+      {id:"view-hrnote",  label:"HR Note"},
+      {id:"view-task",    label:"Task"}
     ]);
   }else{
+    // staff
     $("#role-label").textContent = "Mode Staff — lapor mingguan ke Ibu Negara";
     $("#view-staff").classList.remove("hidden");
-    loadStaff();
-    setupTabs([]);
+    $("#view-task").classList.remove("hidden");
+    loadStaff(); loadMyTasks();
+    setupTabs([
+      {id:"view-staff", label:"Recap Saya"},
+      {id:"view-task",  label:"Task"}
+    ]);
   }
 }
 
@@ -487,7 +585,8 @@ function switchTab(targetId){
 
 $("#logoutBtn").addEventListener("click", ()=>{
   session=null; ownerData=null;
-  ["#view-staff","#view-owner","#view-allstats","#view-hrnote","#topbar"].forEach(s=>$(s).classList.add("hidden"));
+  ["#view-staff","#view-owner","#view-allstats","#view-hrnote","#view-shoutout","#view-task","#topbar"].forEach(s=>$(s).classList.add("hidden"));
+  $("#shoutout-banner").classList.add("hidden");
   $("#tabbar").classList.add("hidden"); $("#tabbar").innerHTML="";
   document.querySelectorAll(".tab-pane").forEach(p=>p.classList.remove("active"));
   $("#view-login").classList.remove("hidden");
@@ -644,6 +743,7 @@ function renderOwner(){
           <div><div class="nm"><span class="nm-link" onclick="event.stopPropagation();openProfile('${esc(m.name)}')">${esc(m.name)}</span> ${roleChip}</div><div class="em">Dikirim ${esc(s.submittedLabel)}</div></div></div>
         <div class="sub-meta">
           ${s.score?`<span class="stars" title="penilaian">${stars(s.score)}</span>`:""}
+          ${getTaskBadge(m.name)}
           <span class="badge ${badge}">${esc(s.status)}</span>
           <span class="chev">▼</span>
         </div>
@@ -802,6 +902,247 @@ async function remind(name, btn){
   }catch(e){ btn.textContent="✗ error"; }
 }
 
+/* ============================================================
+   SHOUTOUT
+   ============================================================ */
+// Banner di atas halaman semua orang
+async function loadShoutoutBanner(){
+  try{
+    const r = await api({action:"getShoutout", name:session.name, pin:session.pin});
+    const box = $("#shoutout-banner");
+    if(!r.ok || !r.shoutout || !r.shoutout.entries.length){ box.classList.add("hidden"); return; }
+    const s = r.shoutout;
+    box.innerHTML = `<div class="so-title">✨ Shoutout Minggu Ini</div>` +
+      s.entries.map(e=>`<div class="so-row"><span class="so-name">🎉 ${esc(e.name)}</span><span class="so-msg">${esc(e.message)}</span></div>`).join("") +
+      `<div class="so-from">dari ${esc(s.from)} · ${esc(s.timestamp)}</div>`;
+    box.classList.remove("hidden");
+  }catch(e){}
+}
+
+// Admin shoutout (Ibu Negara & Bapak Menteri)
+let shoutoutEntries = [{name:"", message:""}]; // state entry rows
+async function loadShoutoutAdmin(){
+  renderShoutoutEntries();
+  loadShoutoutPreview();
+  populateShoutoutDropdowns();
+}
+async function populateShoutoutDropdowns(){
+  try{
+    const r = await api({action:"getTeam"});
+    if(!r.ok) return;
+    // simpan anggota yang boleh di-shoutout
+    const role = session.role;
+    const eligible = r.team.filter(m=>{
+      if(role==="owner")   return m.role!=="owner";
+      if(role==="menteri") return m.role==="pejabat";
+      return false;
+    });
+    window._shoutoutEligible = eligible;
+    renderShoutoutEntries(); // re-render dengan opsi dropdown
+  }catch(e){}
+}
+function renderShoutoutEntries(){
+  const eligible = window._shoutoutEligible || [];
+  const opts = '<option value="">— pilih —</option>' + eligible.map(m=>`<option value="${esc(m.name)}">${esc(m.name)}</option>`).join("");
+  $("#shoutout-entries").innerHTML = shoutoutEntries.map((e,i)=>`
+    <div class="grid-2" style="margin-bottom:10px;align-items:start">
+      <div class="field" style="margin-bottom:0">
+        ${i===0?'<label>Nama</label>':''}
+        <select onchange="shoutoutEntries[${i}].name=this.value">${opts.replace(`value="${esc(e.name)}"`,`value="${esc(e.name)}" selected`)}</select>
+      </div>
+      <div class="field" style="margin-bottom:0;display:flex;gap:8px;align-items:flex-start">
+        <div style="flex:1">
+          ${i===0?'<label>Pesan apresiasi</label>':''}
+          <textarea placeholder="Tulis pujiannya…" onchange="shoutoutEntries[${i}].message=this.value" oninput="shoutoutEntries[${i}].message=this.value">${esc(e.message)}</textarea>
+        </div>
+        ${shoutoutEntries.length>1?`<button class="btn-ghost" style="margin-top:${i===0?'22px':'0'};padding:10px 12px" onclick="removeShoutoutEntry(${i})">✕</button>`:""}
+      </div>
+    </div>`).join("");
+}
+function removeShoutoutEntry(i){ shoutoutEntries.splice(i,1); renderShoutoutEntries(); }
+$("#addShoutoutEntryBtn").addEventListener("click",()=>{ shoutoutEntries.push({name:"",message:""}); renderShoutoutEntries(); });
+$("#publishShoutoutBtn").addEventListener("click", async function(){
+  const valid = shoutoutEntries.filter(e=>e.name.trim()&&e.message.trim());
+  if(!valid.length) return alertBox("#shoutout-alert","Isi minimal 1 nama & pesan.","err");
+  this.disabled=true; this.innerHTML='<span class="spinner"></span>Mempublish…';
+  try{
+    const r = await api({action:"setShoutout", name:session.name, pin:session.pin, entries:valid});
+    if(!r.ok){ alertBox("#shoutout-alert", r.error||"Gagal.","err"); return; }
+    alertBox("#shoutout-alert","✅ Shoutout berhasil dipublish! Sudah tampil di halaman semua orang.","ok");
+    shoutoutEntries = [{name:"",message:""}];
+    renderShoutoutEntries();
+    loadShoutoutPreview();
+    loadShoutoutBanner();
+  }catch(e){ alertBox("#shoutout-alert","Error koneksi.","err"); }
+  finally{ this.disabled=false; this.textContent="Publish Shoutout"; }
+});
+async function loadShoutoutPreview(){
+  try{
+    const r = await api({action:"getShoutout", name:session.name, pin:session.pin});
+    const box = $("#shoutout-preview");
+    if(!box) return;
+    if(!r.ok || !r.shoutout || !r.shoutout.entries.length){
+      box.innerHTML='<p class="muted" style="font-size:13.5px">Belum ada shoutout aktif.</p>'; return;
+    }
+    const s = r.shoutout;
+    box.innerHTML = s.entries.map(e=>`<div class="so-row" style="border-bottom:1px solid var(--line);padding:8px 0">
+      <b style="min-width:100px;display:inline-block">${esc(e.name)}</b> <span style="color:var(--ink-soft)">${esc(e.message)}</span>
+    </div>`).join("") + `<p class="muted" style="font-size:12px;margin-top:8px">dari ${esc(s.from)} · ${esc(s.timestamp)}</p>`;
+  }catch(e){}
+}
+
+/* ============================================================
+   TASK
+   ============================================================ */
+function taskBadgeHTML(done, total){
+  if(total===0) return "";
+  const cls = done===total ? "all-done" : "has-open";
+  return `<span class="task-badge ${cls}">Task ${done}/${total}</span>`;
+}
+function getTaskBadge(name){
+  const tasks = allTasksData.filter(t=>t.target===name);
+  if(!tasks.length) return "";
+  const done = tasks.filter(t=>t.status==="Done").length;
+  return taskBadgeHTML(done, tasks.length);
+}
+
+// Ibu Negara & Bapak Menteri
+async function loadAllTasksOwner(){
+  try{
+    const r = await api({action:"getAllTasks", name:session.name, pin:session.pin});
+    if(!r.ok) return;
+    allTasksData = r.tasks;
+    // setup panel assign
+    populateTaskTargetDropdown();
+    $("#task-assign-panel").classList.remove("hidden");
+    $("#task-list-title").textContent = "Semua Task";
+    renderTaskList();
+  }catch(e){}
+}
+function populateTaskTargetDropdown(){
+  const eligible = window._shoutoutEligible || [];
+  if(!eligible.length){
+    // fallback: ambil dari ownerData
+    const members = ownerData ? ownerData.members : [];
+    $("#taskTargetSel").innerHTML = '<option value="">— pilih —</option>' +
+      members.map(m=>`<option value="${esc(m.name)}">${esc(m.name)} (${esc(roleLabel(m.role))})</option>`).join("");
+  } else {
+    $("#taskTargetSel").innerHTML = '<option value="">— pilih —</option>' +
+      eligible.map(m=>`<option value="${esc(m.name)}">${esc(m.name)} (${esc(roleLabel(m.role))})</option>`).join("");
+  }
+}
+// Staff / Pejabat / Penasihat
+async function loadMyTasks(){
+  try{
+    const r = await api({action:"getMyTasks", name:session.name, pin:session.pin});
+    if(!r.ok) return;
+    myTasksData = r.tasks;
+    $("#task-list-title").textContent = "Task Kamu";
+    renderTaskList();
+  }catch(e){}
+}
+
+// Render task list (shared: pakai allTasksData atau myTasksData tergantung role)
+function renderTaskList(){
+  const isAssigner = session.role==="owner" || session.role==="menteri";
+  const data = isAssigner ? allTasksData : myTasksData;
+  const flt = ($("#task-filter")||{value:"all"}).value;
+  const filtered = flt==="all" ? data : data.filter(t=>t.status===flt);
+  const box = $("#task-list");
+  if(!filtered.length){ box.innerHTML='<div class="empty">Tidak ada task.</div>'; return; }
+  box.innerHTML = filtered.map(t=>{
+    const isDone = t.status==="Done";
+    const canUpdate = !isAssigner; // staff/pejabat/penasihat bisa update
+    return `<div class="task-card">
+      <div class="tc-head">
+        <div>
+          <div class="tc-from">${isAssigner ? "→ "+esc(t.target) : "Dari: "+esc(t.from)} · ${esc(t.createdLabel)}</div>
+          <div class="tc-msg">${esc(t.message)}</div>
+        </div>
+        <span class="badge ${isDone?'b-tepat':'b-belum'}">${esc(t.status)}</span>
+      </div>
+      ${canUpdate ? `
+        <div class="tc-status">
+          <select class="status-sel ${isDone?'done':''}" onchange="this.className='status-sel '+(this.value==='Done'?'done':'')">
+            <option ${!isDone?'selected':''}>Open</option>
+            <option ${isDone?'selected':''}>Done</option>
+          </select>
+        </div>
+        <textarea class="tc-note" placeholder="Keterangan (opsional)…">${esc(t.note)}</textarea>
+        ${t.attachmentUrl?`<a class="tc-att" href="${esc(t.attachmentUrl)}" target="_blank">📎 Attachment</a>`:""}
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:4px">
+          <button class="tc-save" onclick="saveTaskUpdate('${esc(t.id)}',this)">Simpan status</button>
+          <label class="btn-ghost" style="font-size:12.5px;cursor:pointer;padding:6px 12px">
+            📎 Attach file
+            <input type="file" class="pf-photo-input" accept="image/*,application/pdf"
+              onchange="handleTaskAttachment('${esc(t.id)}',event)">
+          </label>
+          <span id="task-msg-${esc(t.id)}" style="font-size:12.5px;color:var(--green)"></span>
+        </div>` :
+        `${t.note?`<p style="font-size:13px;color:var(--ink-soft);margin-top:4px">${esc(t.note)}</p>`:""}
+         ${t.attachmentUrl?`<a class="tc-att" href="${esc(t.attachmentUrl)}" target="_blank">📎 Lihat attachment</a>`:""}`
+      }
+    </div>`;
+  }).join("");
+}
+
+// Staff simpan update status task
+async function saveTaskUpdate(id, btn){
+  const card = btn.closest(".task-card");
+  const status = card.querySelector(".status-sel").value;
+  const note   = card.querySelector(".tc-note").value.trim();
+  btn.disabled=true; btn.textContent="…";
+  try{
+    const r = await api({action:"updateTaskStatus", name:session.name, pin:session.pin, id, status, note});
+    const msg = document.getElementById("task-msg-"+id);
+    if(r.ok){ if(msg) msg.textContent="✓ Tersimpan";
+      const t = myTasksData.find(x=>x.id===id); if(t){t.status=status;t.note=note;}
+    } else { if(msg) msg.textContent="✗ "+(r.error||"gagal"); }
+  }catch(e){ const msg=document.getElementById("task-msg-"+id); if(msg) msg.textContent="✗ error"; }
+  finally{ btn.disabled=false; btn.textContent="Simpan status"; }
+}
+
+// Upload attachment task: kompres gambar, atau langsung base64 untuk PDF
+async function handleTaskAttachment(taskId, ev){
+  const file = ev.target.files && ev.target.files[0]; if(!file) return;
+  let dataUrl;
+  if(file.type.startsWith("image/")){
+    dataUrl = await compressImage(file, 1024, 0.85); // lebih besar untuk attachment
+  } else {
+    dataUrl = await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(file); });
+  }
+  const msg = document.getElementById("task-msg-"+taskId);
+  if(msg) msg.textContent = "Mengunggah…";
+  try{
+    // upload lewat uploadPhoto_ (reuse endpoint) → dapat URL Drive
+    const r = await api({action:"uploadPhoto", name:session.name, pin:session.pin, dataUrl});
+    if(!r.ok){ if(msg) msg.textContent="✗ "+(r.error||"Gagal upload"); return; }
+    // simpan URL attachment ke task
+    const r2 = await api({action:"updateTaskStatus", name:session.name, pin:session.pin,
+      id:taskId, status:"Open", note:"", attachmentUrl:r.photoUrl}); // note & status unchanged = biar backend tetap
+    if(msg) msg.textContent = r2.ok ? "✓ Attachment tersimpan" : "✗ "+(r2.error||"gagal");
+    if(r2.ok){ const t=myTasksData.find(x=>x.id===taskId); if(t) t.attachmentUrl=r.photoUrl; }
+  }catch(e){ if(msg) msg.textContent="✗ error"; }
+  finally{ ev.target.value=""; }
+}
+
+// Kirim task baru (panel assign)
+$("#sendTaskBtn").addEventListener("click", async function(){
+  const target = $("#taskTargetSel").value;
+  const message = $("#taskMsgInput").value.trim();
+  if(!target) return alertBox("#task-assign-alert","Pilih target dulu.","err");
+  if(!message) return alertBox("#task-assign-alert","Isi tugas wajib diisi.","err");
+  this.disabled=true; this.innerHTML='<span class="spinner"></span>Mengirim…';
+  try{
+    const r = await api({action:"addTask", name:session.name, pin:session.pin, target, message});
+    if(!r.ok){ alertBox("#task-assign-alert", r.error||"Gagal.","err"); return; }
+    alertBox("#task-assign-alert",`✅ Task berhasil dikirim ke <b>${esc(target)}</b>. Email notif sudah terkirim.`,"ok");
+    $("#taskTargetSel").value=""; $("#taskMsgInput").value="";
+    loadAllTasksOwner(); // refresh list
+  }catch(e){ alertBox("#task-assign-alert","Error koneksi.","err"); }
+  finally{ this.disabled=false; this.textContent="Kirim Task (+ email notif)"; }
+});
+
 /* ---------- profile modal ---------- */
 let profileTargetName = null;
 async function openProfile(name){
@@ -827,10 +1168,13 @@ function renderProfile(p){
   $("#pf-position").textContent = p.position || roleLabel(p.role);
   $("#pf-photo-btn").classList.toggle("hidden", p.name !== session.name);
   const row=(lab,val)=> val ? `<div class="pf-row"><span class="lab">${esc(lab)}</span><span class="val">${esc(val)}</span></div>` : "";
+  const taskTotal = p.taskTotal||0, taskDone = p.taskDone||0;
+  const taskDisp = taskTotal ? `${taskDone}/${taskTotal}` : "–";
   $("#pf-body").innerHTML = `
-    <div class="pf-pair">
+    <div class="pf-pair" style="grid-template-columns:1fr 1fr 1fr">
       <div class="pf-box"><div class="pf-num">${p.submittedCount}</div><div class="l">Submitted Report</div></div>
       <div class="pf-box"><div class="pf-num">${p.avgScore?p.avgScore.toFixed(1)+" ★":"–"}</div><div class="l">Average Score</div></div>
+      <div class="pf-box"><div class="pf-num">${taskDisp}</div><div class="l">Task Done</div></div>
     </div>
     ${row("Nama Lengkap", p.namaLengkap)}
     ${row("Tempat, Tanggal Lahir", p.ttl)}
