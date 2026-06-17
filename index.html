@@ -171,6 +171,7 @@
     padding:10px 4px;margin-right:18px;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:.15s}
   .tab-btn:hover{color:var(--ink)}
   .tab-btn.active{color:var(--teal-d);border-bottom-color:var(--teal)}
+  .tab-badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;background:var(--rose);color:#fff;font-size:11px;font-weight:700;border-radius:999px;padding:0 5px;margin-left:6px;vertical-align:middle;line-height:1}
   .tab-pane{display:none}
   .tab-pane.active{display:block}
 
@@ -442,8 +443,8 @@ async function api(payload){
 function alertBox(sel,msg,type){ $(sel).innerHTML = msg ? `<div class="alert ${type}">${msg}</div>` : ""; }
 function initials(n){ return n.trim().split(/\s+/).slice(0,2).map(w=>w[0]).join("").toUpperCase(); }
 function stars(n){ n=Number(n)||0; return "★".repeat(n)+"☆".repeat(5-n); }
-function roleLabel(role){ return ({owner:"Ibu Negara", menteri:"Bapak Menteri", pejabat:"Pejabat", penasihat:"Ibu Penasihat", staff:"Staff"})[role] || ""; }
-function feedbackGiver(role){ return role==="pejabat" ? "Bapak Menteri" : "Ibu Negara"; }
+function roleLabel(role){ return ({owner:"Ibu Negara", menteri:"Bapak Menteri", pejabat:"Pejabat", penasihat:"Ibu Penasihat", trainer:"Trainer", pedagang:"Ibu Pedagang", petualang:"Petualang", staff:"Staff"})[role] || ""; }
+function feedbackGiver(role){ return (role==="pejabat"?"Bapak Menteri":role==="petualang"?"Ibu Pedagang":role==="trainer"?"Ibu Penasihat":"Ibu Negara"); }
 
 /* ---------- avatar foto profil ---------- */
 // String HTML utk dipakai di dalam innerHTML (dashboard list, dsb)
@@ -466,7 +467,7 @@ async function init(){
     const sel = $("#nameSel");
     if(r.ok && r.team.length){
       sel.innerHTML = '<option value="">— pilih nama —</option>' +
-        r.team.map(m=>`<option value="${esc(m.name)}">${esc(m.name)}${roleLabel(m.role)?' ('+roleLabel(m.role)+')':''}</option>`).join("");
+        r.team.map(m=>`<option value="${esc(m.name)}">${esc(m.name)}</option>`).join("");
     }else{
       sel.innerHTML = '<option value="">(daftar tim kosong)</option>';
     }
@@ -499,7 +500,7 @@ function showApp(){
   $("#whoPill").textContent = session.name;
   setAvatar($("#whoAvatar"), session.name, session.photoUrl);
   const role = session.role;
-  loadShoutoutBanner(); // banner tampil untuk semua role
+  loadShoutoutBanner();
   if(role==="owner"){
     $("#role-label").textContent = "Mode Ibu Negara — pantau semua & nilai";
     $("#view-owner").classList.remove("hidden");
@@ -509,7 +510,7 @@ function showApp(){
     setupTabs([
       {id:"view-owner",   label:"Dashboard"},
       {id:"view-shoutout",label:"Shoutout ✨"},
-      {id:"view-task",    label:"Task"}
+      {id:"view-task",    label:"Task", badge:"task"}
     ]);
   }else if(role==="menteri"){
     $("#role-label").textContent = "Mode Bapak Menteri — lapor & nilai Pejabat";
@@ -522,7 +523,18 @@ function showApp(){
       {id:"view-staff",   label:"Recap Saya"},
       {id:"view-owner",   label:"Dashboard Pejabat"},
       {id:"view-shoutout",label:"Shoutout ✨"},
-      {id:"view-task",    label:"Task"}
+      {id:"view-task",    label:"Task", badge:"task"}
+    ]);
+  }else if(role==="pedagang"){
+    $("#role-label").textContent = "Mode Ibu Pedagang — lapor & nilai Petualang";
+    $("#view-staff").classList.remove("hidden");
+    $("#view-owner").classList.remove("hidden");
+    $("#view-task").classList.remove("hidden");
+    loadStaff(); loadOwner(); loadAllTasksOwner();
+    setupTabs([
+      {id:"view-staff",  label:"Recap Saya"},
+      {id:"view-owner",  label:"Dashboard Petualang"},
+      {id:"view-task",   label:"Task", badge:"task"}
     ]);
   }else if(role==="pejabat"){
     $("#role-label").textContent = "Mode Pejabat — lapor mingguan ke Bapak Menteri";
@@ -531,7 +543,7 @@ function showApp(){
     loadStaff(); loadMyTasks();
     setupTabs([
       {id:"view-staff", label:"Recap Saya"},
-      {id:"view-task",  label:"Task"}
+      {id:"view-task",  label:"Task", badge:"task"}
     ]);
   }else if(role==="penasihat"){
     $("#role-label").textContent = "Mode Ibu Penasihat — lapor ke Ibu Negara & pantau semua staff";
@@ -544,17 +556,34 @@ function showApp(){
       {id:"view-staff",   label:"Recap Saya"},
       {id:"view-allstats",label:"Rekap Semua Staff"},
       {id:"view-hrnote",  label:"HR Note"},
-      {id:"view-task",    label:"Task"}
+      {id:"view-task",    label:"Task", badge:"task"}
+    ]);
+  }else if(role==="trainer"){
+    $("#role-label").textContent = "Mode Trainer — lapor mingguan ke Ibu Penasihat";
+    $("#view-staff").classList.remove("hidden");
+    $("#view-task").classList.remove("hidden");
+    loadStaff(); loadMyTasks();
+    setupTabs([
+      {id:"view-staff", label:"Recap Saya"},
+      {id:"view-task",  label:"Task", badge:"task"}
+    ]);
+  }else if(role==="petualang"){
+    $("#role-label").textContent = "Mode Petualang — lapor mingguan ke Ibu Pedagang";
+    $("#view-staff").classList.remove("hidden");
+    $("#view-task").classList.remove("hidden");
+    loadStaff(); loadMyTasks();
+    setupTabs([
+      {id:"view-staff", label:"Recap Saya"},
+      {id:"view-task",  label:"Task", badge:"task"}
     ]);
   }else{
-    // staff
     $("#role-label").textContent = "Mode Staff — lapor mingguan ke Ibu Negara";
     $("#view-staff").classList.remove("hidden");
     $("#view-task").classList.remove("hidden");
     loadStaff(); loadMyTasks();
     setupTabs([
       {id:"view-staff", label:"Recap Saya"},
-      {id:"view-task",  label:"Task"}
+      {id:"view-task",  label:"Task", badge:"task"}
     ]);
   }
 }
@@ -564,13 +593,14 @@ function setupTabs(tabs){
   const bar = $("#tabbar");
   if(tabs.length < 2){
     bar.classList.add("hidden"); bar.innerHTML="";
-    // pastikan section yg sudah di-unhide tampil normal (tanpa sistem tab)
     document.querySelectorAll(".tab-pane").forEach(p=>p.classList.add("active"));
     return;
   }
   bar.classList.remove("hidden");
   bar.innerHTML = tabs.map((t,i)=>
-    `<button class="tab-btn ${i===0?'active':''}" data-target="${t.id}" onclick="switchTab('${t.id}')">${esc(t.label)}</button>`
+    `<button class="tab-btn ${i===0?'active':''}" data-target="${t.id}" data-badge="${t.badge||''}" onclick="switchTab('${t.id}')">
+      ${esc(t.label)}<span class="tab-badge hidden" id="badge-${t.id}"></span>
+    </button>`
   ).join("");
   document.querySelectorAll(".tab-pane").forEach(p=>{
     const isTab = tabs.some(t=>t.id===p.id);
@@ -582,6 +612,17 @@ function switchTab(targetId){
   document.querySelectorAll(".tab-pane").forEach(p=>{
     if(!p.classList.contains("hidden")) p.classList.toggle("active", p.id===targetId);
   });
+}
+// Update badge angka di tab Task (dipanggil setelah data task masuk)
+function updateTaskTabBadge(){
+  const el = $("#badge-view-task");
+  if(!el) return;
+  const isAssigner = session.role==="owner" || session.role==="menteri" || session.role==="pedagang";
+  // untuk assigner: open task dari orang lain; untuk penerima: my open tasks
+  const data = isAssigner ? allTasksData : myTasksData;
+  const openCount = data.filter(t=>t.status!=="Done").length;
+  if(openCount>0){ el.textContent=openCount; el.classList.remove("hidden"); }
+  else { el.classList.add("hidden"); }
 }
 
 $("#logoutBtn").addEventListener("click", ()=>{
@@ -654,18 +695,26 @@ async function submitRecap(){
 /* ---------- owner / dashboard ---------- */
 function canScoreMember(m){
   const v = ownerData.viewerRole;
-  if(v==="owner")   return m.role==="staff" || m.role==="menteri";
-  if(v==="menteri") return m.role==="pejabat";
+  if(v==="owner")    return m.role!=="owner";
+  if(v==="menteri")  return m.role==="pejabat";
+  if(v==="pedagang") return m.role==="petualang";
+  if(v==="penasihat")return m.role==="trainer";
   return false;
 }
-function scorerOf(role){ return role==="pejabat" ? "Bapak Menteri" : "Ibu Negara"; }
+function scorerOf(role){
+  if(role==="pejabat")   return "Bapak Menteri";
+  if(role==="petualang") return "Ibu Pedagang";
+  if(role==="trainer")   return "Ibu Penasihat";
+  return "Ibu Negara";
+}
 async function loadOwner(){
   $("#owner-list").innerHTML = '<div class="empty">Memuat data…</div>';
   try{
     const r = await api({action:"getSubmissions", name:session.name, pin:session.pin});
     if(!r.ok){ $("#owner-list").innerHTML = `<div class="empty">${esc(r.error||"Gagal memuat.")}</div>`; return; }
     ownerData = r;
-    $("#ownerTitle").textContent = (r.viewerRole==="menteri") ? "Dashboard Pejabat" : "Dashboard Recap — Semua";
+    const titles = {menteri:"Dashboard Pejabat", pedagang:"Dashboard Petualang", penasihat:"Dashboard Tim (read-only)"};
+    $("#ownerTitle").textContent = titles[r.viewerRole] || "Dashboard Recap — Semua";
     buildWeekFilter();
     renderOwner();
   }catch(e){ $("#owner-list").innerHTML = '<div class="empty">Error koneksi.</div>'; }
@@ -1018,6 +1067,7 @@ async function loadAllTasksOwner(){
     $("#task-assign-panel").classList.remove("hidden");
     $("#task-list-title").textContent = "Semua Task";
     renderTaskList();
+    updateTaskTabBadge();
   }catch(e){}
 }
 function populateTaskTargetDropdown(){
@@ -1040,6 +1090,7 @@ async function loadMyTasks(){
     myTasksData = r.tasks;
     $("#task-list-title").textContent = "Task Kamu";
     renderTaskList();
+    updateTaskTabBadge();
   }catch(e){}
 }
 
@@ -1098,6 +1149,7 @@ async function saveTaskUpdate(id, btn){
     const msg = document.getElementById("task-msg-"+id);
     if(r.ok){ if(msg) msg.textContent="✓ Tersimpan";
       const t = myTasksData.find(x=>x.id===id); if(t){t.status=status;t.note=note;}
+      updateTaskTabBadge();
     } else { if(msg) msg.textContent="✗ "+(r.error||"gagal"); }
   }catch(e){ const msg=document.getElementById("task-msg-"+id); if(msg) msg.textContent="✗ error"; }
   finally{ btn.disabled=false; btn.textContent="Simpan status"; }
