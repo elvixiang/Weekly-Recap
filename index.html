@@ -546,14 +546,18 @@ function showApp(){
       {id:"view-task",  label:"Task", badge:"task"}
     ]);
   }else if(role==="penasihat"){
-    $("#role-label").textContent = "Mode Ibu Penasihat — lapor ke Ibu Negara & pantau semua staff";
+    $("#role-label").textContent = "Mode Ibu Penasihat — lapor ke Ibu Negara & kelola Trainer";
     $("#view-staff").classList.remove("hidden");
+    $("#view-owner").classList.remove("hidden");
+    $("#view-shoutout").classList.remove("hidden");
     $("#view-allstats").classList.remove("hidden");
     $("#view-hrnote").classList.remove("hidden");
     $("#view-task").classList.remove("hidden");
-    loadStaff(); loadAllStats(); loadHRNoteOptions(); loadMyTasks();
+    loadStaff(); loadOwner(); loadShoutoutAdmin(); loadAllStats(); loadHRNoteOptions(); loadAllTasksOwner();
     setupTabs([
       {id:"view-staff",   label:"Recap Saya"},
+      {id:"view-owner",   label:"Dashboard Trainer"},
+      {id:"view-shoutout",label:"Shoutout ✨"},
       {id:"view-allstats",label:"Rekap Semua Staff"},
       {id:"view-hrnote",  label:"HR Note"},
       {id:"view-task",    label:"Task", badge:"task"}
@@ -713,7 +717,7 @@ async function loadOwner(){
     const r = await api({action:"getSubmissions", name:session.name, pin:session.pin});
     if(!r.ok){ $("#owner-list").innerHTML = `<div class="empty">${esc(r.error||"Gagal memuat.")}</div>`; return; }
     ownerData = r;
-    const titles = {menteri:"Dashboard Pejabat", pedagang:"Dashboard Petualang", penasihat:"Dashboard Tim (read-only)"};
+    const titles = {menteri:"Dashboard Pejabat", pedagang:"Dashboard Petualang", penasihat:"Dashboard Trainer"};
     $("#ownerTitle").textContent = titles[r.viewerRole] || "Dashboard Recap — Semua";
     buildWeekFilter();
     renderOwner();
@@ -980,15 +984,16 @@ async function populateShoutoutDropdowns(){
   try{
     const r = await api({action:"getTeam"});
     if(!r.ok) return;
-    // simpan anggota yang boleh di-shoutout
     const role = session.role;
     const eligible = r.team.filter(m=>{
-      if(role==="owner")   return m.role!=="owner";
-      if(role==="menteri") return m.role==="pejabat";
+      if(role==="owner")    return m.role!=="owner";
+      if(role==="menteri")  return m.role==="pejabat";
+      if(role==="pedagang") return m.role==="petualang";
+      if(role==="penasihat")return m.role==="trainer";
       return false;
     });
     window._shoutoutEligible = eligible;
-    renderShoutoutEntries(); // re-render dengan opsi dropdown
+    renderShoutoutEntries();
   }catch(e){}
 }
 function renderShoutoutEntries(){
