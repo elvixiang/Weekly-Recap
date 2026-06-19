@@ -647,8 +647,7 @@ function switchTab(targetId){
 function updateTaskTabBadge(){
   const el = $("#badge-view-task");
   if(!el) return;
-  const isAssigner = session.role==="owner" || session.role==="menteri" || session.role==="pedagang";
-  // untuk assigner: open task dari orang lain; untuk penerima: my open tasks
+  const isAssigner = session.role==="owner" || session.role==="menteri" || session.role==="pedagang" || session.role==="penasihat";
   const data = isAssigner ? allTasksData : myTasksData;
   const openCount = data.filter(t=>t.status!=="Done").length;
   if(openCount>0){ el.textContent=openCount; el.classList.remove("hidden"); }
@@ -1089,31 +1088,52 @@ function getTaskBadge(name){
   return taskBadgeHTML(done, tasks.length);
 }
 
-// Ibu Negara & Bapak Menteri
+// Ibu Negara, Bapak Menteri, Ibu Pedagang, Ibu Penasihat
 async function loadAllTasksOwner(){
+  const isFirstLoad = allTasksData.length === 0;
   try{
     const r = await api({action:"getAllTasks", name:session.name, pin:session.pin});
     if(!r.ok) return;
     allTasksData = r.tasks;
-    // setup panel assign
-    populateTaskTargetDropdown();
-    $("#task-assign-panel").classList.remove("hidden");
+    // setup panel assign — hanya tampil untuk role yang boleh assign
+    const canAssign = session.role==="owner" || session.role==="menteri" || session.role==="pedagang" || session.role==="penasihat";
+    if(canAssign){
+      populateTaskTargetDropdown();
+      $("#task-assign-panel").classList.remove("hidden");
+    }
     $("#task-list-title").textContent = "Semua Task";
     renderTaskList();
     updateTaskTabBadge();
+    // Popup notif: menteri/pedagang/penasihat juga lapor recap, jadi perlu cek
+    // Owner tidak lapor recap, jadi skip popup
+    if(isFirstLoad && session.role!=="owner"){
+      setTimeout(()=>checkAndShowNotifPopupAssigner(), 800);
+    }
   }catch(e){}
 }
 function populateTaskTargetDropdown(){
-  const eligible = window._shoutoutEligible || [];
-  if(!eligible.length){
-    // fallback: ambil dari ownerData
-    const members = ownerData ? ownerData.members : [];
-    $("#taskTargetSel").innerHTML = '<option value="">— pilih —</option>' +
-      members.map(m=>`<option value="${esc(m.name)}">${esc(m.name)} (${esc(roleLabel(m.role))})</option>`).join("");
-  } else {
-    $("#taskTargetSel").innerHTML = '<option value="">— pilih —</option>' +
-      eligible.map(m=>`<option value="${esc(m.name)}">${esc(m.name)} (${esc(roleLabel(m.role))})</option>`).join("");
+  // Tentukan eligible targets berdasarkan role yang sedang login
+  const role = session.role;
+  let eligible = [];
+  if(role==="owner"){
+    // owner bisa assign ke semua kecuali dirinya sendiri
+    const allMembers = ownerData ? ownerData.members : [];
+    eligible = allMembers.filter(m=>m.name!==session.name && m.role!=="owner");
+  } else if(role==="menteri"){
+    eligible = (window._shoutoutEligible || []).filter(m=>m.role==="pejabat");
+  } else if(role==="pedagang"){
+    eligible = (window._shoutoutEligible || []).filter(m=>m.role==="petualang");
+  } else if(role==="penasihat"){
+    eligible = (window._shoutoutEligible || []).filter(m=>m.role==="trainer");
   }
+  // Fallback ke ownerData.members dengan filter role
+  if(!eligible.length && ownerData && ownerData.members){
+    const roleFilter = role==="menteri"?"pejabat":role==="pedagang"?"petualang":role==="penasihat"?"trainer":null;
+    if(roleFilter) eligible = ownerData.members.filter(m=>m.role===roleFilter);
+    else if(role==="owner") eligible = ownerData.members.filter(m=>m.name!==session.name && m.role!=="owner");
+  }
+  $("#taskTargetSel").innerHTML = '<option value="">— pilih —</option>' +
+    eligible.map(m=>`<option value="${esc(m.name)}">${esc(m.name)} (${esc(roleLabel(m.role))})</option>`).join("");
 }
 // Staff / Pejabat / Penasihat
 async function loadMyTasks(){
@@ -1132,7 +1152,7 @@ async function loadMyTasks(){
 
 // Render task list (shared: pakai allTasksData atau myTasksData tergantung role)
 function renderTaskList(){
-  const isAssigner = session.role==="owner" || session.role==="menteri";
+  const isAssigner = session.role==="owner" || session.role==="menteri" || session.role==="pedagang" || session.role==="penasihat";
   const data = isAssigner ? allTasksData : myTasksData;
   const flt = ($("#task-filter")||{value:"all"}).value;
   const filtered = flt==="all" ? data : data.filter(t=>t.status===flt);
@@ -1140,7 +1160,8 @@ function renderTaskList(){
   if(!filtered.length){ box.innerHTML='<div class="empty">Tidak ada task.</div>'; return; }
   box.innerHTML = filtered.map(t=>{
     const isDone = t.status==="Done";
-    const canUpdate = !isAssigner; // staff/pejabat/penasihat bisa update
+    // Hanya penerima task (bukan assigner) yang bisa update status
+    const canUpdate = !isAssigner;
     return `<div class="task-card">
       <div class="tc-head">
         <div>
@@ -1447,8 +1468,9 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeMascotPopup()
 
 /* ---- Notif popup: cek setelah login ---- */
 async function checkAndShowNotifPopup(){
+  // Dipanggil untuk role yang pakai loadMyTasks (pejabat, trainer, petualang, staff)
   const items = [];
-  // 1. Cek task open
+  // 1. Cek task open milik sendiri
   const openTasks = myTasksData.filter(t=>t.status!=="Done");
   if(openTasks.length>0){
     items.push({icon:"📋", text:`Kamu punya <b>${openTasks.length}</b> task yang belum selesai.`});
@@ -1457,20 +1479,8 @@ async function checkAndShowNotifPopup(){
   try{
     const r = await api({action:"myHistory", name:session.name, pin:session.pin});
     if(r.ok && r.history.length>0){
-      // cek apakah ada submit untuk minggu ini
-      const curWeek = mondayISO(new Date());
-      const thisWeek = r.history.find(h=>{
-        // weekLabel berisi teks, kita compare via weekOf dari submission terakhir
-        return true; // cek via items di bawah
-      });
-      // Ambil weekOf submission paling baru
-      const lastSub = r.history[0];
-      // Kalau weekLabel kosong atau bukan minggu ini → belum submit
-      // (history sudah diurutkan terbaru di atas)
-      // Kita pakai getSubmissions sudah tidak ada di staff — pakai history timestamp
-      // Simple check: kalau total history ada tapi minggu ini belum → ada notif
-      // Lebih akurat: cek via lastSub.weekLabel vs currentWeekLabel()
       const curLabel = currentWeekLabel();
+      const lastSub = r.history[0];
       if(lastSub && lastSub.weekLabel !== curLabel){
         items.push({icon:"📝", text:`Kamu <b>belum mengumpulkan</b> laporan minggu ini. Deadline Jumat 19:00!`});
       }
@@ -1478,10 +1488,31 @@ async function checkAndShowNotifPopup(){
       items.push({icon:"📝", text:`Kamu <b>belum pernah mengumpulkan</b> laporan. Yuk mulai minggu ini!`});
     }
   }catch(e){}
+  if(items.length>0) showMascotPopup({type:"notif", messages:items});
+}
 
-  if(items.length>0){
-    showMascotPopup({type:"notif", messages:items});
+async function checkAndShowNotifPopupAssigner(){
+  // Dipanggil untuk penasihat & pedagang (pakai loadAllTasksOwner tapi juga perlu cek submit sendiri)
+  const items = [];
+  // 1. Cek task open yang mereka assign (opsional, bisa skip)
+  const openTasksAssigned = allTasksData.filter(t=>t.status!=="Done");
+  if(openTasksAssigned.length>0){
+    items.push({icon:"📋", text:`Ada <b>${openTasksAssigned.length}</b> task yang belum diselesaikan anggota tim kamu.`});
   }
+  // 2. Cek apakah sudah submit laporan minggu ini
+  try{
+    const r = await api({action:"myHistory", name:session.name, pin:session.pin});
+    if(r.ok && r.history.length>0){
+      const curLabel = currentWeekLabel();
+      const lastSub = r.history[0];
+      if(lastSub && lastSub.weekLabel !== curLabel){
+        items.push({icon:"📝", text:`Kamu <b>belum mengumpulkan</b> laporan minggu ini. Deadline Jumat 19:00!`});
+      }
+    } else if(r.ok && r.history.length===0){
+      items.push({icon:"📝", text:`Kamu <b>belum pernah mengumpulkan</b> laporan. Yuk mulai minggu ini!`});
+    }
+  }catch(e){}
+  if(items.length>0) showMascotPopup({type:"notif", messages:items});
 }
 </script>
 
