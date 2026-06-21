@@ -86,6 +86,10 @@
   .b-telat{background:var(--amber-bg);color:var(--amber)}
   .b-absen{background:var(--rose-bg);color:var(--rose)}
   .b-belum{background:var(--slate-bg);color:var(--slate)}
+  .b-needscore{background:#fff4d6;color:#9a6700}
+  .b-needscore::before{background:#d98c00}
+
+  .sub-card.needs-score{border-color:#f0cc7a;box-shadow:0 0 0 1px #f0cc7a inset}
 
   /* ---- staff form ---- */
   .week-tag{display:inline-flex;align-items:center;gap:8px;background:var(--teal-soft);color:var(--teal-d);font-weight:600;font-size:13px;padding:7px 13px;border-radius:999px;margin-bottom:18px}
@@ -816,7 +820,14 @@ function renderOwner(){
     <div class="stat a"><div class="n">${absen}</div><div class="l">Absen</div></div>`;
 
   const rows = members.map(m=>({m, s:byName[m.name]}))
-    .sort((a,b)=> (a.s?0:1)-(b.s?0:1));
+    .sort((a,b)=>{
+      const prio = ({m,s}) => {
+        if(!s) return 2;                                    // absen = paling bawah
+        const needsScore = canScoreMember(m) && !s.feedbackAt;
+        return needsScore ? 0 : 1;                           // belum dinilai = paling atas
+      };
+      return prio(a)-prio(b);
+    });
 
   $("#owner-list").innerHTML = rows.map(({m,s})=>{
     const roleChip = showRole ? `<span class="rolechip">${esc(roleLabel(m.role))}</span>` : "";
@@ -834,6 +845,7 @@ function renderOwner(){
     }
     const badge = s.status==="Tepat Waktu" ? "b-tepat" : "b-telat";
     const hasFeedback = !!s.feedbackAt;
+    const needsScore = canScore && !hasFeedback;
     const ratingBlock = canScore
       ? `<div class="blk"><h4>Penilaian kamu <span style="color:var(--rose)">*</span></h4>
           <div class="rate-row" data-id="${esc(s.id)}">
@@ -858,11 +870,12 @@ function renderOwner(){
           ${s.feedback?`<p style="margin-top:6px">${esc(s.feedback)}</p>`:(s.score?"":`<p class="muted" style="font-size:13px">Belum dinilai ${scorerOf(m.role)}.</p>`)}
           ${s.feedbackAt?`<p class="muted" style="font-size:11.5px;margin-top:6px">Updated ${esc(s.feedbackAt)}</p>`:""}
         </div>`;
-    return `<div class="card sub-card">
+    return `<div class="card sub-card ${needsScore?'needs-score':''}">
       <div class="sub-head" onclick="toggleBody(this)">
         <div class="sub-who"><div class="avatar">${avatarHTML(m.name, m.photoUrl)}</div>
           <div><div class="nm"><span class="nm-link" onclick="event.stopPropagation();openProfile('${esc(m.name)}')">${esc(m.name)}</span> ${roleChip}</div><div class="em">Dikirim ${esc(s.submittedLabel)}</div></div></div>
         <div class="sub-meta">
+          ${needsScore?`<span class="badge b-needscore">⚠️ Belum dinilai</span>`:""}
           ${s.score?`<span class="stars" title="penilaian">${stars(s.score)}</span>`:""}
           ${getTaskBadge(m.name)}
           <span class="badge ${badge}">${esc(s.status)}</span>
