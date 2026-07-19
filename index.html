@@ -218,6 +218,25 @@
   .tc-att{font-size:12px;color:var(--teal-d);margin-top:4px;display:block}
   .tc-att a{color:inherit}
 
+  /* ---- Review tab ---- */
+  .review-search-wrap{margin-bottom:20px}
+  .review-search{width:100%;font:inherit;font-size:14px;border:1px solid var(--line);border-radius:12px;padding:10px 14px;background:var(--paper);color:var(--ink);outline:none;box-sizing:border-box}
+  .review-search:focus{border-color:var(--teal)}
+  .review-group{margin-bottom:28px}
+  .review-group-title{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+  .review-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+  .review-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:box-shadow .15s,transform .15s}
+  .review-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.09);transform:translateY(-2px)}
+  .review-card.hidden-card{display:none}
+  .review-avatar{width:48px;height:48px;border-radius:14px;flex-shrink:0;overflow:hidden;background:var(--paper2);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:var(--teal-d)}
+  .review-avatar img{width:100%;height:100%;object-fit:cover}
+  .review-info{min-width:0}
+  .review-name{font-weight:600;font-size:14.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .review-position{font-size:12.5px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+  .review-stats{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+  .review-stat{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--paper2);color:var(--ink-soft)}
+  .review-stat.has-score{background:var(--green-bg);color:var(--green)}
+
   /* ---- task thread UI ---- */
   .task-card{cursor:default}
   .tc-head{cursor:pointer;user-select:none}
@@ -452,6 +471,15 @@
     </div>
   </section>
 
+  <!-- ================= REVIEW (Ibu Negara) ================= -->
+  <section id="view-review" class="hidden tab-pane" style="margin-top:0">
+    <div class="review-search-wrap">
+      <input id="reviewSearch" type="search" class="review-search"
+        placeholder="🔍  Cari nama atau posisi…" oninput="filterReviewCards()">
+    </div>
+    <div id="review-body"><div class="empty">Memuat data tim…</div></div>
+  </section>
+
 </div>
 
 <!-- ================= PROFILE MODAL ================= -->
@@ -492,6 +520,12 @@ let ownerData = null;      // {submissions, team}
 let allStatsData = null;   // hasil getAllStats, dipakai juga utk dropdown HR Note
 let myTasksData = [];      // task milik sendiri (untuk badge & tab Task)
 let allTasksData = [];     // semua task (untuk owner/menteri dashboard & tab Task)
+let _reqId = 0;            // session guard
+function resetState(){
+  _reqId++;
+  session=null; ownerData=null; allStatsData=null; reviewData=null;
+  myTasksData=[]; allTasksData=[];
+}
 
 async function api(payload){
   const res = await fetch(APPS_SCRIPT_URL, {
@@ -568,11 +602,13 @@ function showApp(){
     $("#view-owner").classList.remove("hidden");
     $("#view-shoutout").classList.remove("hidden");
     $("#view-task").classList.remove("hidden");
-    loadOwner(); loadShoutoutAdmin(); loadAllTasksOwner();
+    $("#view-review").classList.remove("hidden");
+    loadOwner(); loadShoutoutAdmin(); loadAllTasksOwner(); loadReview();
     setupTabs([
       {id:"view-owner",   label:"Dashboard"},
       {id:"view-shoutout",label:"Shoutout ✨"},
-      {id:"view-task",    label:"Task", badge:"task"}
+      {id:"view-task",    label:"Task", badge:"task"},
+      {id:"view-review",  label:"👥 Review Tim"}
     ]);
   }else if(role==="menteri"){
     $("#role-label").textContent = "Mode Bapak Menteri — lapor & nilai Pejabat";
@@ -1685,6 +1721,69 @@ async function checkAndShowNotifPopupAssigner(){
   }catch(e){}
   if(items.length>0) showMascotPopup({type:"notif", messages:items});
 }
+
+/* ============================================================
+   REVIEW TIM — khusus Ibu Negara
+   ============================================================ */
+let reviewData = null;
+
+async function loadReview(){
+  const myReqId = _reqId;
+  $("#review-body").innerHTML = '<div class="empty">Memuat data tim…</div>';
+  try{
+    const r = await api({action:"getReviewData", name:session.name, pin:session.pin});
+    if(_reqId !== myReqId) return;
+    if(!r.ok){ $("#review-body").innerHTML=`<div class="empty">${esc(r.error)}</div>`; return; }
+    reviewData = r;
+    renderReview();
+  }catch(e){ $("#review-body").innerHTML='<div class="empty">Error koneksi.</div>'; }
+}
+
+const ROLE_ORDER_LABELS = {
+  menteri:"Bapak Menteri", pedagang:"Ibu Pedagang", penasihat:"Ibu Penasihat",
+  pejabat:"Pejabat", trainer:"Trainer", petualang:"Petualang", staff:"Staff"
+};
+
+function renderReview(){
+  if(!reviewData) return;
+  const {grouped, roleOrder} = reviewData;
+  const q = ($("#reviewSearch")?$("#reviewSearch").value:"").toLowerCase().trim();
+  let html = "";
+  roleOrder.forEach(role=>{
+    const members = (grouped[role]||[]).filter(m=>
+      !q || m.name.toLowerCase().includes(q) || m.position.toLowerCase().includes(q)
+    );
+    if(!members.length) return;
+    html += `<div class="review-group">
+      <div class="review-group-title">${esc(ROLE_ORDER_LABELS[role]||role)} <span style="font-weight:400;opacity:.6">(${members.length})</span></div>
+      <div class="review-grid">
+        ${members.map(m=>{
+          const initials = m.name.trim().split(" ").map(w=>w[0]).slice(0,2).join("").toUpperCase();
+          const avatarContent = m.photoUrl
+            ? `<img src="${esc(m.photoUrl)}" alt="${esc(m.name)}" loading="lazy">`
+            : initials;
+          return `<div class="review-card" onclick="openProfile('${esc(m.name)}')">
+            <div class="review-avatar">${avatarContent}</div>
+            <div class="review-info">
+              <div class="review-name">${esc(m.name)}</div>
+              <div class="review-position">${esc(m.position)}</div>
+              <div class="review-stats">
+                <span class="review-stat">📋 ${m.submittedCount} recap</span>
+                ${m.avgScore
+                  ? `<span class="review-stat has-score">⭐ ${m.avgScore}</span>`
+                  : `<span class="review-stat">Belum dinilai</span>`}
+              </div>
+            </div>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>`;
+  });
+  if(!html) html = '<div class="empty">Tidak ada hasil pencarian.</div>';
+  $("#review-body").innerHTML = html;
+}
+
+function filterReviewCards(){ renderReview(); }
 </script>
 
 </body>
