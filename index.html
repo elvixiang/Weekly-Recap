@@ -237,6 +237,30 @@
   .review-stat{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--paper2);color:var(--ink-soft)}
   .review-stat.has-score{background:var(--green-bg);color:var(--green)}
 
+  /* ---- riwayat report di profile modal ---- */
+  .pf-history{margin-top:18px}
+  .pf-history-title{font-size:12px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:10px}
+  .pf-report-item{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:8px}
+  .pf-report-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;gap:10px;background:var(--surface)}
+  .pf-report-head:hover{background:var(--paper2)}
+  .pf-report-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+  .pf-report-date{font-size:13px;font-weight:600;color:var(--ink)}
+  .pf-report-status{font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px}
+  .pf-report-score{font-size:12px;color:var(--amber)}
+  .pf-report-chev{font-size:11px;color:var(--ink-soft);transition:transform .15s;flex-shrink:0}
+  .pf-report-item.open .pf-report-chev{transform:rotate(180deg)}
+  .pf-report-body{display:none;padding:12px 14px 14px;border-top:1px solid var(--line);background:var(--paper)}
+  .pf-report-item.open .pf-report-body{display:block}
+  .pf-report-section{margin-bottom:10px}
+  .pf-report-section:last-child{margin-bottom:0}
+  .pf-report-label{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:4px}
+  .pf-report-text{font-size:13.5px;color:var(--ink);white-space:pre-wrap;line-height:1.6}
+  .pf-feedback-box{background:var(--green-bg);border-radius:10px;padding:10px 12px;margin-top:10px}
+  .pf-feedback-label{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--green);margin-bottom:4px}
+  .pf-feedback-text{font-size:13.5px;color:var(--ink);white-space:pre-wrap;line-height:1.6}
+  .pf-feedback-at{font-size:11px;color:var(--ink-soft);margin-top:4px}
+  .pf-no-feedback{font-size:12.5px;color:var(--ink-soft);font-style:italic;margin-top:8px}
+
   /* ---- task thread UI ---- */
   .task-card{cursor:default}
   .tc-head{cursor:pointer;user-select:none}
@@ -1487,6 +1511,54 @@ function renderProfile(p){
   const row=(lab,val)=> val ? `<div class="pf-row"><span class="lab">${esc(lab)}</span><span class="val">${esc(val)}</span></div>` : "";
   const taskTotal = p.taskTotal||0, taskDone = p.taskDone||0;
   const taskDisp = taskTotal ? `${taskDone}/${taskTotal}` : "–";
+
+  // Riwayat submissions
+  const subs = p.submissions || [];
+  let historyHTML = "";
+  if(subs.length){
+    historyHTML = `<div class="pf-history">
+      <div class="pf-history-title">Riwayat Report (${subs.length})</div>
+      ${subs.map((s,i)=>{
+        const statusCls = s.status==="Tepat Waktu" ? "b-tepat" : "b-telat";
+        const scoreStars = s.score ? "★".repeat(s.score)+"☆".repeat(5-s.score) : "";
+        return `<div class="pf-report-item" id="pf-rep-${i}">
+          <div class="pf-report-head" onclick="togglePfReport(${i})">
+            <div class="pf-report-meta">
+              <span class="pf-report-date">📅 ${esc(s.weekOf||s.submittedLabel)}</span>
+              <span class="badge ${statusCls} pf-report-status">${esc(s.status)}</span>
+              ${s.score?`<span class="pf-report-score">${scoreStars}</span>`:""}
+            </div>
+            <span class="pf-report-chev">▾</span>
+          </div>
+          <div class="pf-report-body">
+            <div class="pf-report-section">
+              <div class="pf-report-label">Pekerjaan minggu ini</div>
+              <div class="pf-report-text">${esc(s.recap||"–")}</div>
+            </div>
+            ${s.blockers?`<div class="pf-report-section">
+              <div class="pf-report-label">Kendala</div>
+              <div class="pf-report-text">${esc(s.blockers)}</div>
+            </div>`:""}
+            ${s.nextPlan?`<div class="pf-report-section">
+              <div class="pf-report-label">Rencana minggu depan</div>
+              <div class="pf-report-text">${esc(s.nextPlan)}</div>
+            </div>`:""}
+            ${s.feedback
+              ? `<div class="pf-feedback-box">
+                  <div class="pf-feedback-label">💬 Feedback${s.score?" · "+"★".repeat(s.score):""}</div>
+                  <div class="pf-feedback-text">${esc(s.feedback)}</div>
+                  ${s.feedbackAt?`<div class="pf-feedback-at">Dikirim ${esc(s.feedbackAt)}</div>`:""}
+                </div>`
+              : `<div class="pf-no-feedback">Belum ada feedback untuk report ini.</div>`
+            }
+          </div>
+        </div>`;
+      }).join("")}
+    </div>`;
+  } else {
+    historyHTML = `<div class="pf-history"><p class="muted" style="font-size:13px">Belum ada report yang dikumpulkan.</p></div>`;
+  }
+
   $("#pf-body").innerHTML = `
     <div class="pf-pair" style="grid-template-columns:1fr 1fr 1fr">
       <div class="pf-box"><div class="pf-num">${p.submittedCount}</div><div class="l">Submitted Report</div></div>
@@ -1500,7 +1572,13 @@ function renderProfile(p){
     ${row("Status", p.employeeStatus)}
     ${row("Note from HR", p.note)}
     ${(!p.ttl && !p.joinDate && !p.employeeStatus && !p.note) ? '<p class="muted" style="font-size:13px;margin-top:6px">Data HR belum diisi di sheet <b>Profiles</b>.</p>' : ""}
+    ${historyHTML}
   `;
+}
+
+function togglePfReport(i){
+  const el = document.getElementById("pf-rep-"+i);
+  if(el) el.classList.toggle("open");
 }
 
 /* ---------- upload foto profil ---------- */
